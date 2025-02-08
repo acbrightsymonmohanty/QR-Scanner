@@ -212,9 +212,85 @@ letsStartBtn.addEventListener('click', () => {
 // Add this variable to track the current scanner instance
 let currentScanner = null;
 
-// Update the initScanner function
+// Add camera control functionality
+function initCameraControls() {
+    const galleryBtn = document.querySelector('.control-btn:nth-child(1)');
+    const flashBtn = document.querySelector('.control-btn:nth-child(2)');
+    const switchCameraBtn = document.querySelector('.control-btn:nth-child(3)');
+    const galleryInput = document.getElementById('gallery-input');
+
+    // Gallery button
+    galleryBtn.addEventListener('click', () => {
+        galleryInput.click();
+    });
+
+    // Flash button
+    let isFlashOn = false;
+    flashBtn.addEventListener('click', async () => {
+        try {
+            const track = currentScanner?.stream?.getVideoTracks()[0];
+            if (track?.getCapabilities()?.torch) {
+                isFlashOn = !isFlashOn;
+                await track.applyConstraints({
+                    advanced: [{ torch: isFlashOn }]
+                });
+                flashBtn.innerHTML = isFlashOn ? 
+                    '<i class="fas fa-bolt" style="color: var(--primary-color);"></i>' : 
+                    '<i class="fas fa-bolt"></i>';
+            }
+        } catch (err) {
+            console.error('Flash not available:', err);
+        }
+    });
+
+    // Switch camera button
+    let currentCameraIndex = 0;
+    switchCameraBtn.addEventListener('click', async () => {
+        try {
+            const cameras = await Instascan.Camera.getCameras();
+            if (cameras.length > 1) {
+                currentCameraIndex = (currentCameraIndex + 1) % cameras.length;
+                if (currentScanner) {
+                    await currentScanner.stop();
+                    await currentScanner.start(cameras[currentCameraIndex]);
+                }
+            }
+        } catch (err) {
+            console.error('Error switching camera:', err);
+        }
+    });
+
+    // Gallery input change handler
+    galleryInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            handleGalleryImage(file);
+        }
+        // Reset input
+        e.target.value = '';
+    });
+}
+
+// Update initScanner function
 function initScanner() {
-    // Request camera permission first
+    const scannerView = document.getElementById('scanner-view');
+    
+    // Add navigation bar if it doesn't exist
+    if (!scannerView.querySelector('.top-nav')) {
+        const nav = document.createElement('div');
+        nav.className = 'top-nav';
+        nav.innerHTML = `
+            <div class="nav-left">
+                <button class="back-btn" onclick="closeScanner()">
+                    <i class="fas fa-arrow-left"></i>
+                </button>
+                <h1>Scan QR</h1>
+            </div>
+        `;
+        scannerView.insertBefore(nav, scannerView.firstChild);
+    }
+
+    // Initialize camera
     if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
         navigator.mediaDevices.getUserMedia({ 
             video: { 
@@ -225,67 +301,33 @@ function initScanner() {
             audio: false 
         })
         .then(function(stream) {
-            const scannerView = document.getElementById('scanner-view');
-            
-            // Add navigation bar if it doesn't exist
-            if (!scannerView.querySelector('.top-nav')) {
-                const nav = document.createElement('div');
-                nav.className = 'top-nav';
-                nav.innerHTML = `
-                    <div class="nav-left">
-                        <button class="back-btn" onclick="closeScanner()">
-                            <i class="fas fa-arrow-left"></i>
-                        </button>
-                        <h1>Scan QR</h1>
-                    </div>
-                `;
-                scannerView.insertBefore(nav, scannerView.firstChild);
-            }
-
-            // Stop any existing scanner
-            if (currentScanner) {
-                currentScanner.stop();
-            }
-
             const preview = document.getElementById('preview');
-            
-            // Set up the video stream
             preview.srcObject = stream;
             preview.play();
 
-            // Initialize scanner
             currentScanner = new Instascan.Scanner({
                 video: preview,
                 mirror: false,
                 continuous: true,
                 captureImage: true,
-                scanPeriod: 5,
-                backgroundScan: true,
-                refractoryPeriod: 5000,
-                willReadFrequently: true
+                scanPeriod: 5
             });
 
-            // Add scan event listener
             currentScanner.addListener('scan', handleScanResult);
-
-            // Start scanner
             currentScanner.start();
+
+            // Initialize camera controls after scanner is ready
+            initCameraControls();
         })
         .catch(function(error) {
             console.error('Camera access error:', error);
             alert('Error accessing camera. Please make sure camera permissions are granted.');
-            
-            // Close scanner view and return to history
             closeScanner();
         });
-    } else {
-        console.error('getUserMedia is not supported');
-        alert('Camera access is not supported on this device');
-        closeScanner();
     }
 }
 
-// Add this helper function for handling gallery images
+// Add handleGalleryImage function
 function handleGalleryImage(file) {
     const reader = new FileReader();
     reader.onload = function(event) {
@@ -302,11 +344,6 @@ function handleGalleryImage(file) {
                 const code = jsQR(imageData.data, imageData.width, imageData.height);
                 
                 if (code) {
-                    // Stop scanner temporarily
-                    if (currentScanner) {
-                        currentScanner.stop();
-                    }
-                    // Handle the QR code result
                     handleScanResult(code.data);
                 } else {
                     alert('No QR code found in the image');
