@@ -895,50 +895,122 @@ input:focus {
 }
 
 #qr-input {
-    background: var(--darker-bg);
-    border: 1px solid var(--card-bg);
-    color: var(--light-text);
-    padding: 15px;
-    border-radius: 12px;
-    width: 100%;
-    margin-bottom: 20px;
+    flex: 1;
+    padding: 12px;
+    background: transparent;
+    border: none;
+    color: white;
+    font-size: 16px;
 }
 
 #qr-input:focus {
-    border-color: var(--primary-color);
     outline: none;
 }
 
-.input-label {
-    color: var(--gray-text);
-    margin-bottom: 8px;
-    display: block;
+#paste-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.1);
+    color: #FFA500;
 }
 
-#download-qr {
-    background: var(--darker-bg);
-    color: var(--light-text);
+#generate-qr-btn {
+    width: 100%;
+    padding: 16px;
+    background: #FFA500;
+    color: white;
     border: none;
-    padding: 12px 24px;
-    border-radius: 30px;
-    font-size: 14px;
+    border-radius: 12px;
+    font-size: 16px;
     font-weight: 500;
+    cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 8px;
-    margin: 0 auto;
-    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+#generate-qr-btn:active {
+    transform: scale(0.98);
+}
+
+/* QR Result Styles */
+.qr-result {
+    margin-top: 32px;
+    opacity: 0;
+    transform: translateY(20px);
     transition: all 0.3s ease;
 }
 
-#download-qr:hover {
-    background: var(--primary-color);
-    transform: translateY(-2px);
+.qr-result.show {
+    opacity: 1;
+    transform: translateY(0);
 }
 
-#download-qr i {
+.qr-card {
+    background: #2D2D2D;
+    border-radius: 16px;
+    padding: 24px;
+    text-align: center;
+}
+
+.qr-preview {
+    background: white;
+    padding: 20px;
+    border-radius: 12px;
+    display: inline-block;
+    margin-bottom: 20px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+/* Action Buttons Styles */
+.qr-actions {
+    display: flex;
+    gap: 12px;
+}
+
+.action-btn {
+    flex: 1;
+    padding: 12px;
+    border-radius: 8px;
+    border: none;
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.action-btn:hover {
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.action-btn:active {
+    transform: scale(0.95);
+}
+
+.action-btn i {
     font-size: 16px;
+    color: #FFA500;
+}
+
+/* Share Button Specific Styles */
+#share-qr {
+    background: rgba(255, 165, 0, 0.15);
+}
+
+#share-qr:hover {
+    background: rgba(255, 165, 0, 0.25);
+}
+
+#share-qr i {
+    color: #FFA500;
 }
 
 /* Asset Details Styles */
@@ -2366,20 +2438,124 @@ body.auth-active {
     top: 20px;
     left: 50%;
     transform: translateX(-50%);
-    background: #2D2D2D;
-    color: white;
     padding: 12px 24px;
+    background: rgba(30, 30, 30, 0.95);
     border-radius: 8px;
+    color: white;
+    font-size: 14px;
+    z-index: 2000;
     display: flex;
     align-items: center;
     gap: 8px;
-    z-index: 2000;
-    opacity: 0;
-    transition: opacity 0.3s;
 }
 
 .toast-message.show {
     opacity: 1;
+}
+
+.toast-message.success i {
+    color: #4CAF50;
+}
+
+.toast-message.error i {
+    color: #F44336;
+}
+
+/* Generate View Styles */
+#generate-view {
+    background: #121212;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+}
+
+/* Fixed Header Styles */
+#generate-view .app-header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    padding-top: max(16px, env(safe-area-inset-top));
+    background-color: #1E1E1E;
+    z-index: 100;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+#generate-view .app-header h2 {
+    font-size: 20px;
+    font-weight: 600;
+    color: white;
+}
+
+/* Content Styles with proper top padding */
+.generate-content {
+    flex: 1;
+    padding: 24px 20px;
+    /* Add padding to account for fixed header */
+    padding-top: calc(70px + env(safe-area-inset-top));
+    padding-bottom: calc(80px + env(safe-area-inset-bottom));
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Input Section Styles */
+.input-section {
+    margin-bottom: 24px;
+}
+
+.input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+    background: #2D2D2D;
+    border-radius: 12px;
+    padding: 4px;
+}
+
+/* Bottom Navigation Styles */
+#generate-view .bottom-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: #1E1E1E;
+    padding: 12px 20px;
+    padding-bottom: max(12px, env(safe-area-inset-bottom));
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    z-index: 100;
+    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.2);
+}
+
+/* Gallery input styling */
+#gallery-input {
+    display: none;
+}
+
+/* Active state for gallery button */
+.control-btn.active {
+    color: var(--primary-color);
+    background: rgba(255, 165, 0, 0.15);
+}
+
+/* Toast message styling for feedback */
+.toast-message {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 12px 24px;
+    background: rgba(30, 30, 30, 0.95);
+    border-radius: 8px;
+    color: white;
+    font-size: 14px;
+    z-index: 2000;
 }
 
 .toast-message.success i {

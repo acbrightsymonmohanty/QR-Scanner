@@ -146,11 +146,7 @@
             <div class="corner-marker bottom-right"></div>
         </div>
 
-        <div class="zoom-control">
-            <button class="zoom-btn">-</button>
-            <input type="range" id="zoom-slider" min="0" max="100" value="50">
-            <button class="zoom-btn">+</button>
-        </div>
+        
 
         <nav class="bottom-nav">
             <button class="nav-btn">
@@ -173,23 +169,42 @@
     <div id="generate-view" class="container hidden">
         <header class="app-header">
             <h2>Generate QR Code</h2>
-            <button class="icon-btn" id="generate-close"><i class="fas fa-times"></i></button>
+            <button class="icon-btn" id="generate-close">
+                <i class="fas fa-times"></i>
+            </button>
         </header>
 
-        <div class="generate-form">
-            <div class="input-group">
+        <div class="generate-content">
+            <div class="input-section">
                 <label class="input-label">Enter URL or Text</label>
-                <input type="text" id="qr-input" placeholder="https://example.com">
+                <div class="input-wrapper">
+                    <input type="text" id="qr-input" placeholder="https://example.com">
+                    <button id="paste-btn" class="icon-btn">
+                        <i class="fas fa-paste"></i>
+                    </button>
+                </div>
             </div>
             
-            <button id="generate-qr-btn" class="primary-btn">Generate QR Code</button>
-        </div>
-
-        <div id="qr-result" class="qr-result hidden">
-            <div class="qr-preview"></div>
-            <button id="download-qr" class="secondary-btn">
-                <i class="fas fa-download"></i> Download QR Code
+            <button id="generate-qr-btn" class="primary-btn">
+                <i class="fas fa-qrcode"></i>
+                Generate QR Code
             </button>
+
+            <div id="qr-result" class="qr-result hidden">
+                <div class="qr-card">
+                    <div class="qr-preview"></div>
+                    <div class="qr-actions">
+                        <button id="download-qr" class="action-btn">
+                            <i class="fas fa-download"></i>
+                            Download
+                        </button>
+                        <button id="share-qr" class="action-btn">
+                            <i class="fas fa-share-alt"></i>
+                            Share
+                        </button>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <nav class="bottom-nav">

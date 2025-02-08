@@ -121,21 +121,35 @@ authForm.addEventListener('submit', async (e) => {
 function showToast(message, type = 'success') {
     const toast = document.createElement('div');
     toast.className = `toast-message ${type} show`;
+    
+    // Choose icon based on type
+    let icon;
+    switch(type) {
+        case 'success':
+            icon = 'fa-check-circle';
+            break;
+        case 'error':
+            icon = 'fa-exclamation-circle';
+            break;
+        case 'info':
+            icon = 'fa-info-circle';
+            break;
+        default:
+            icon = 'fa-info-circle';
+    }
+    
     toast.innerHTML = `
-        <i class="fas ${type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle'}"></i>
+        <i class="fas ${icon}"></i>
         <span>${message}</span>
     `;
+    
     document.body.appendChild(toast);
     
-    // Show toast
+    // Remove toast after animation
     setTimeout(() => {
-        toast.classList.add('show');
-        // Hide toast after 3 seconds
-        setTimeout(() => {
-            toast.classList.remove('show');
-            setTimeout(() => toast.remove(), 300);
-        }, 3000);
-    }, 100);
+        toast.classList.remove('show');
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
 }
 
 // Add function to get user-friendly error messages
@@ -1315,48 +1329,65 @@ function deleteHistoryItem(itemId, itemType) {
 document.getElementById('generate-qr-btn').addEventListener('click', () => {
     const input = document.getElementById('qr-input').value.trim();
     if (!input) {
-        alert('Please enter a URL or text');
+        showToast('Please enter a URL or text', 'error');
         return;
     }
 
-    // Add http:// if input is a URL without protocol
-    let qrContent = input;
-    if (input.includes('.') && !input.startsWith('http://') && !input.startsWith('https://')) {
-        qrContent = 'https://' + input;
-    }
-
-    // Clear previous QR code
-    const qrContainer = document.querySelector('.qr-preview');
-    qrContainer.innerHTML = '';
+    const qrResult = document.getElementById('qr-result');
+    const qrPreview = document.querySelector('.qr-preview');
+    qrPreview.innerHTML = '';
 
     // Create QR code
+    new QRCode(qrPreview, {
+        text: input,
+        width: 200,
+        height: 200,
+        colorDark: "#000000",
+        colorLight: "#ffffff",
+        correctLevel: QRCode.CorrectLevel.H
+    });
+
+    // Show result with animation
+    qrResult.classList.remove('hidden');
+    setTimeout(() => qrResult.classList.add('show'), 10);
+
+    // Save to history
+    saveToHistory(input);
+});
+
+// Share functionality
+document.getElementById('share-qr').addEventListener('click', async () => {
+    const qrImage = document.querySelector('.qr-preview img');
+    if (!qrImage) return;
+
     try {
-        new QRCode(qrContainer, {
-            text: qrContent,
-            width: 200,
-            height: 200,
-            colorDark: "#000000",
-            colorLight: "#ffffff",
-            correctLevel: QRCode.CorrectLevel.H
-        });
-
-        // Show QR result
-        document.getElementById('qr-result').classList.remove('hidden');
-
-        // Store in Firebase and update history
-        const user = auth.currentUser;
-        if (user) {
-            database.ref('generated_qr/' + user.uid).push({
-                content: qrContent,
-                timestamp: Date.now(),
-                type: 'generated'
-            }).then(() => {
-                populateHistory(); // Update history after generating QR
+        // Convert QR code to blob
+        const blob = await (await fetch(qrImage.src)).blob();
+        const file = new File([blob], 'qrcode.png', { type: 'image/png' });
+        
+        // Check if Web Share API is available
+        if (navigator.share) {
+            await navigator.share({
+                files: [file],
+                title: 'QR Code',
+                text: 'Check out this QR code!'
             });
+            showToast('QR code shared successfully', 'success');
+        } else {
+            // Fallback for browsers that don't support Web Share API
+            const shareUrl = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = shareUrl;
+            a.download = 'qrcode.png';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(shareUrl);
+            showToast('QR code downloaded (sharing not supported)', 'info');
         }
-    } catch (error) {
-        console.error('Error generating QR code:', error);
-        alert('Error generating QR code');
+    } catch (err) {
+        console.error('Error sharing:', err);
+        showToast('Failed to share QR code', 'error');
     }
 });
 
@@ -1727,3 +1758,154 @@ function confirmVerification() {
 }
 
 // Add this CSS to your styles.css file 
+
+// Add back button functionality for generate view
+document.querySelector('#generate-view .back-btn').addEventListener('click', () => {
+    // Hide generate view
+    document.getElementById('generate-view').classList.add('hidden');
+    
+    // Show scanner container
+    document.getElementById('scanner-container').classList.remove('hidden');
+    
+    // Reset the form
+    document.getElementById('qr-input').value = '';
+    document.getElementById('qr-result').classList.add('hidden');
+    const qrPreview = document.querySelector('.qr-preview');
+    if (qrPreview) {
+        qrPreview.innerHTML = '';
+    }
+    
+    // Update active nav button
+    document.querySelectorAll('.nav-btn').forEach(btn => {
+        btn.classList.remove('active');
+        if (btn.dataset.view === 'history') {
+            btn.classList.add('active');
+        }
+    });
+});
+
+// Add navigation functionality
+document.querySelectorAll('#generate-view .nav-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        const view = btn.dataset.view;
+        
+        // Hide all containers
+        document.querySelectorAll('.container').forEach(container => {
+            container.classList.add('hidden');
+        });
+        
+        // Show selected view
+        if (view === 'generate') {
+            document.getElementById('generate-view').classList.remove('hidden');
+        } else if (view === 'history') {
+            document.getElementById('scanner-container').classList.remove('hidden');
+        }
+        
+        // Update active state
+        document.querySelectorAll('.nav-btn').forEach(navBtn => {
+            navBtn.classList.remove('active');
+        });
+        btn.classList.add('active');
+    });
+});
+
+// Add paste functionality
+document.getElementById('paste-btn').addEventListener('click', async () => {
+    try {
+        const text = await navigator.clipboard.readText();
+        document.getElementById('qr-input').value = text;
+    } catch (err) {
+        console.error('Failed to read clipboard:', err);
+    }
+});
+
+// Gallery QR Code scanning functionality
+document.querySelector('.control-btn i.fa-image').parentElement.addEventListener('click', () => {
+    const galleryInput = document.getElementById('gallery-input');
+    galleryInput.click();
+});
+
+document.getElementById('gallery-input').addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    try {
+        // Create an image element to load the selected file
+        const img = new Image();
+        img.src = URL.createObjectURL(file);
+        
+        await new Promise((resolve) => {
+            img.onload = () => {
+                // Create a canvas to draw the image
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                
+                // Set canvas size to match image
+                canvas.width = img.width;
+                canvas.height = img.height;
+                
+                // Draw image on canvas
+                ctx.drawImage(img, 0, 0);
+                
+                // Get image data for QR code detection
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                
+                // Create a temporary container for the QR code
+                const tempContainer = document.createElement('div');
+                const qrCode = new QRCode(tempContainer, {
+                    text: "temp",
+                    width: canvas.width,
+                    height: canvas.height
+                });
+                
+                // Attempt to decode QR code
+                try {
+                    const code = jsQR(imageData.data, imageData.width, imageData.height);
+                    if (code) {
+                        // QR code found
+                        handleQRCodeResult(code.data);
+                        showToast('QR Code detected successfully', 'success');
+                    } else {
+                        showToast('No QR code found in image', 'error');
+                    }
+                } catch (error) {
+                    console.error('QR Code scanning error:', error);
+                    showToast('Failed to scan QR code', 'error');
+                }
+                
+                // Clean up
+                URL.revokeObjectURL(img.src);
+                resolve();
+            };
+        });
+    } catch (error) {
+        console.error('Error processing image:', error);
+        showToast('Error processing image', 'error');
+    }
+});
+
+// Function to handle QR code result
+function handleQRCodeResult(result) {
+    // Check if result is a URL
+    try {
+        new URL(result);
+        // If it's a URL, navigate to asset details
+        navigateToAssetDetails(result);
+    } catch {
+        // If it's not a URL, show the result
+        showToast('Scanned content: ' + result, 'success');
+    }
+}
+
+// Function to navigate to asset details
+function navigateToAssetDetails(url) {
+    // Hide scanner view
+    document.getElementById('scanner-view').classList.add('hidden');
+    
+    // Show asset details view
+    const assetDetailsView = document.getElementById('asset-details-view');
+    assetDetailsView.classList.remove('hidden');
+    
+    // Load asset details using the URL
+    loadAssetDetails(url);
+} 
