@@ -120,7 +120,7 @@ authForm.addEventListener('submit', async (e) => {
 // Add toast message function
 function showToast(message, type = 'success') {
     const toast = document.createElement('div');
-    toast.className = `toast ${type}`;
+    toast.className = `toast-message ${type}`;
     toast.innerHTML = `
         <i class="fas ${type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle'}"></i>
         <span>${message}</span>
@@ -130,7 +130,7 @@ function showToast(message, type = 'success') {
     // Show toast
     setTimeout(() => {
         toast.classList.add('show');
-        // Remove toast after 3 seconds
+        // Hide toast after 3 seconds
         setTimeout(() => {
             toast.classList.remove('show');
             setTimeout(() => toast.remove(), 300);
@@ -212,154 +212,144 @@ letsStartBtn.addEventListener('click', () => {
 // Add this variable to track the current scanner instance
 let currentScanner = null;
 
-// Update initScanner function
+// Update the initScanner function
 function initScanner() {
-    const scannerView = document.getElementById('scanner-view');
-    let currentStream = null;
-    let isFrontCamera = false;
-
-    // Add navigation bar if it doesn't exist
-    if (!scannerView.querySelector('.top-nav')) {
-        const nav = document.createElement('div');
-        nav.className = 'top-nav';
-        nav.innerHTML = `
-            <div class="nav-left">
-                <button class="back-btn" onclick="closeScanner()">
-                    <i class="fas fa-arrow-left"></i>
-                </button>
-                <h1>Scan QR</h1>
-            </div>
-        `;
-        scannerView.insertBefore(nav, scannerView.firstChild);
+    // Stop any existing scanner
+    if (currentScanner) {
+        currentScanner.stop();
     }
 
-    // Function to start camera with specific facing mode
-    async function startCamera(facingMode = 'environment') {
-        try {
-            // Stop any existing streams
-            if (currentStream) {
-                currentStream.getTracks().forEach(track => track.stop());
+    const preview = document.getElementById('preview');
+    currentScanner = new Instascan.Scanner({
+        video: preview,
+        mirror: false,
+        continuous: true,
+        captureImage: true,
+        scanPeriod: 5,
+        backgroundScan: true,
+        refractoryPeriod: 5000,
+        willReadFrequently: true
+    });
+
+    // Add scan event listener
+    currentScanner.addListener('scan', handleScanResult);
+
+    let cameras = [];
+    let currentCameraIndex = 0;
+
+    // Start camera with better error handling
+    Instascan.Camera.getCameras()
+        .then(availableCameras => {
+            cameras = availableCameras;
+            if (cameras.length > 0) {
+                // Try to find back camera first
+                const backCamera = cameras.find(camera => 
+                    camera.name.toLowerCase().includes('back') || 
+                    camera.name.toLowerCase().includes('environment')
+                );
+                currentCameraIndex = backCamera ? cameras.indexOf(backCamera) : 0;
+                return currentScanner.start(cameras[currentCameraIndex]);
+            } else {
+                throw new Error('No cameras found');
             }
-            if (currentScanner) {
-                currentScanner.stop();
-            }
-
-            // Try to get the requested camera
-            const stream = await navigator.mediaDevices.getUserMedia({
-                video: {
-                    facingMode: { exact: facingMode },
-                    width: { ideal: 1280 },
-                    height: { ideal: 720 }
-                }
-            });
-
-            const preview = document.getElementById('preview');
-            preview.srcObject = stream;
-            preview.style.transform = facingMode === 'user' ? 'scaleX(1)' : 'scaleX(-1)';
-            await preview.play();
-
-            currentStream = stream;
-
-            // Initialize scanner
-            currentScanner = new Instascan.Scanner({
-                video: preview,
-                mirror: false,
-                continuous: true,
-                scanPeriod: 5
-            });
-
-            currentScanner.addListener('scan', handleScanResult);
-            await currentScanner.start();
-
-            return stream;
-        } catch (error) {
-            console.error('Camera start error:', error);
-            // If back camera fails, try front camera
-            if (facingMode === 'environment') {
-                console.log('Falling back to front camera');
-                return startCamera('user');
-            }
-            throw error;
-        }
-    }
-
-    // Start with back camera
-    startCamera('environment')
-        .then(stream => {
-            // Initialize camera controls
-            const galleryBtn = document.querySelector('.control-btn:nth-child(1)');
-            const flashBtn = document.querySelector('.control-btn:nth-child(2)');
-            const switchCameraBtn = document.querySelector('.control-btn:nth-child(3)');
-            const galleryInput = document.getElementById('gallery-input');
-
-            // Gallery button
-            galleryBtn.addEventListener('click', () => {
-                galleryInput.click();
-            });
-
-            // Flash button
-            let isFlashOn = false;
-            flashBtn.addEventListener('click', async () => {
-                try {
-                    const track = currentStream.getVideoTracks()[0];
-                    const capabilities = track.getCapabilities();
-
-                    if (capabilities.torch) {
-                        isFlashOn = !isFlashOn;
-                        await track.applyConstraints({
-                            advanced: [{ torch: isFlashOn }]
-                        });
-                        flashBtn.innerHTML = isFlashOn ? 
-                            '<i class="fas fa-bolt" style="color: var(--primary-color);"></i>' : 
-                            '<i class="fas fa-bolt"></i>';
-                        showToast(isFlashOn ? 'Flash turned on' : 'Flash turned off', 'success');
-                    } else {
-                        showToast('Flash not available on this device', 'error');
-                    }
-                } catch (err) {
-                    console.error('Flash error:', err);
-                    showToast('Failed to toggle flash', 'error');
-                }
-            });
-
-            // Switch camera button
-            switchCameraBtn.addEventListener('click', async () => {
-                try {
-                    isFrontCamera = !isFrontCamera;
-                    await startCamera(isFrontCamera ? 'user' : 'environment');
-                    
-                    // Reset flash state
-                    isFlashOn = false;
-                    flashBtn.innerHTML = '<i class="fas fa-bolt"></i>';
-                    
-                    showToast(`Switched to ${isFrontCamera ? 'front' : 'back'} camera`, 'success');
-                } catch (err) {
-                    console.error('Camera switch error:', err);
-                    showToast('Failed to switch camera', 'error');
-                }
-            });
-
-            // Gallery input handler
-            galleryInput.addEventListener('change', (e) => {
-                const file = e.target.files[0];
-                if (file) {
-                    if (!file.type.startsWith('image/')) {
-                        showToast('Please select an image file', 'error');
-                        return;
-                    }
-                    handleGalleryImage(file);
-                }
-                e.target.value = '';
-            });
         })
         .catch(error => {
-            console.error('Camera access error:', error);
-            showToast('Error accessing camera. Please check permissions.', 'error');
-            closeScanner();
+            console.error('Error starting camera:', error);
+            alert('Error accessing camera. Please make sure camera permissions are granted.');
         });
+
+    // Handle gallery selection
+    const galleryBtn = document.querySelector('.control-btn:nth-child(1)');
+    const flashBtn = document.querySelector('.control-btn:nth-child(2)');
+    const switchBtn = document.querySelector('.control-btn:nth-child(3)');
+    const galleryInput = document.getElementById('gallery-input');
+
+    // Gallery button functionality
+    galleryBtn.addEventListener('click', () => {
+        galleryInput.click();
+    });
+
+    // Flash button functionality
+    let isFlashOn = false;
+    flashBtn.addEventListener('click', async () => {
+        try {
+            if (!preview.srcObject) return;
+            const track = preview.srcObject.getVideoTracks()[0];
+            const capabilities = await track.getCapabilities();
+            
+            if (capabilities.torch) {
+                isFlashOn = !isFlashOn;
+                await track.applyConstraints({
+                    advanced: [{ torch: isFlashOn }]
+                });
+                flashBtn.innerHTML = isFlashOn ? 
+                    '<i class="fas fa-bolt" style="color: var(--primary-color)"></i>' : 
+                    '<i class="fas fa-bolt"></i>';
+            } else {
+                alert('Your device does not support flash');
+            }
+        } catch (err) {
+            console.error('Error toggling flash:', err);
+            alert('Error toggling flash');
+        }
+    });
+
+    // Camera switch button functionality
+    switchBtn.addEventListener('click', () => {
+        if (cameras.length > 1) {
+            currentCameraIndex = (currentCameraIndex + 1) % cameras.length;
+            currentScanner.stop();
+            currentScanner.start(cameras[currentCameraIndex])
+                .then(() => {
+                    // Update video style based on camera type
+                    const isBackCamera = cameras[currentCameraIndex].name.toLowerCase().includes('back') ||
+                                      cameras[currentCameraIndex].name.toLowerCase().includes('environment');
+                    preview.style.transform = isBackCamera ? 'scaleX(-1)' : 'scaleX(1)';
+                })
+                .catch(err => {
+                    console.error('Error switching camera:', err);
+                    alert('Error switching camera');
+                });
+        } else {
+            alert('Only one camera is available');
+        }
+    });
+
+    // Add gallery input handler
+    galleryInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            handleGalleryImage(file);
+        }
+        // Clear input value to allow selecting the same file again
+        e.target.value = '';
+    });
+
+    // Add close button functionality
+    const closeBtn = document.querySelector('.close-scanner-btn');
+    if (closeBtn) {
+        closeBtn.addEventListener('click', () => {
+            // Stop the scanner
+            cleanupScanner();
+            
+            // Hide scanner view
+            document.getElementById('scanner-view').classList.add('hidden');
+            
+            // Show scanner container
+            document.getElementById('scanner-container').classList.remove('hidden');
+            
+            // Update active nav button
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.classList.remove('active');
+                if (btn.dataset.view === 'history') {
+                    btn.classList.add('active');
+                }
+            });
+        });
+    }
 }
 
-// Add handleGalleryImage function
+// Add this helper function for handling gallery images
 function handleGalleryImage(file) {
     const reader = new FileReader();
     reader.onload = function(event) {
@@ -376,6 +366,11 @@ function handleGalleryImage(file) {
                 const code = jsQR(imageData.data, imageData.width, imageData.height);
                 
                 if (code) {
+                    // Stop scanner temporarily
+                    if (currentScanner) {
+                        currentScanner.stop();
+                    }
+                    // Handle the QR code result
                     handleScanResult(code.data);
                 } else {
                     alert('No QR code found in the image');
@@ -511,13 +506,11 @@ function showAssetDetails(assetCode) {
             });
 
             assetPage.innerHTML = `
-                <div class="top-nav">
-                    <div class="nav-left">
-                        <button class="back-btn">
-                            <i class="fas fa-arrow-left"></i>
-                        </button>
-                        <h1>Asset Details</h1>
-                    </div>
+                <div class="asset-header">
+                    <button class="back-btn">
+                        <i class="fas fa-arrow-left"></i>
+                    </button>
+                    <h2>Asset Details</h2>
                 </div>
 
                 <div class="asset-content">
@@ -610,37 +603,84 @@ function showAssetDetails(assetCode) {
         });
 }
 
-// Update showVerificationConfirm function
+// Update showVerificationConfirm function with improved navigation
 function showVerificationConfirm(assetCode) {
     const comments = document.getElementById('verification-comments').value;
-    const user = auth.currentUser;
+    const modal = document.createElement('div');
+    modal.className = 'modal verification-modal';
     
-    // Add verification to database
-    database.ref(`verifications/${user.uid}`).push({
-        assetCode: assetCode,
-        comments: comments,
-        timestamp: Date.now(),
-        userEmail: user.email,
-        verified: true // Add verified status
-    }).then(() => {
-        // Update scans to mark as verified
-        database.ref(`scans/${user.uid}`)
-            .orderByChild('content')
-            .equalTo(assetCode)
-            .once('value')
-            .then((snapshot) => {
-                snapshot.forEach((child) => {
-                    child.ref.update({ verified: true });
+    modal.innerHTML = `
+        <div class="modal-content">
+            <h3>Confirm Verification</h3>
+            <p>Are you sure you want to verify this asset?</p>
+            <div class="location-info">
+                <i class="fas fa-map-marker-alt"></i>
+                <span id="location-text">Getting location...</span>
+            </div>
+            <div class="modal-buttons">
+                <button class="secondary-btn" onclick="this.closest('.modal').remove()">No</button>
+                <button class="primary-btn" id="confirm-verify">Yes</button>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    // Get location
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                const locationText = modal.querySelector('#location-text');
+                const location = `${position.coords.latitude}, ${position.coords.longitude}`;
+                locationText.textContent = location;
+
+                // Add confirm button functionality
+                modal.querySelector('#confirm-verify').addEventListener('click', () => {
+                    const user = auth.currentUser;
+                    if (user) {
+                        // Save verification to Firebase
+                        const verificationData = {
+                            assetCode: assetCode,
+                            timestamp: Date.now(),
+                            comments: comments,
+                            location: location,
+                            userEmail: user.email,
+                            verified: true
+                        };
+
+                        database.ref(`verifications/${user.uid}`).push(verificationData)
+                            .then(() => {
+                                // Remove modal and asset page
+                                modal.remove();
+                                document.querySelector('.asset-page').remove();
+                                
+                                // Show success message
+                                showSuccessMessage('Asset verified successfully');
+                                
+                                // Show history view and update list
+                                document.getElementById('scanner-container').classList.remove('hidden');
+                                document.querySelectorAll('.nav-btn').forEach(btn => {
+                                    btn.classList.remove('active');
+                                    if (btn.dataset.view === 'history') {
+                                        btn.classList.add('active');
+                                    }
+                                });
+                                populateHistory();
+                            })
+                            .catch(error => {
+                                console.error('Error saving verification:', error);
+                                alert('Error saving verification');
+                            });
+                    }
                 });
-                
-                // Close asset details page and refresh history
-                document.querySelector('.asset-page').remove();
-                document.getElementById('scanner-container').classList.remove('hidden');
-                populateHistory();
-            });
-    }).catch(error => {
-        console.error('Error saving verification:', error);
-    });
+            },
+            (error) => {
+                console.error('Error getting location:', error);
+                modal.querySelector('.location-info').innerHTML = 
+                    '<i class="fas fa-exclamation-circle"></i> Location unavailable';
+            }
+        );
+    }
 }
 
 // Add success message function
@@ -773,135 +813,153 @@ function showHistoryView() {
 
 // Update initNavigation function
 function initNavigation() {
-    const navBtns = document.querySelectorAll('.nav-btn');
-    const centerBtn = document.querySelector('.center-btn');
-    
-    // Handle regular nav buttons
-    navBtns.forEach(btn => {
+    // Handle bottom navigation buttons
+    document.querySelectorAll('.nav-btn').forEach(btn => {
         btn.addEventListener('click', () => {
-            navBtns.forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            
             const view = btn.dataset.view;
+            
+            // Remove active class from all nav buttons
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+
+            // Handle view switching
             if (view === 'generate') {
-                document.getElementById('scanner-container').classList.add('hidden');
+                // Show generate view
                 document.getElementById('scanner-view').classList.add('hidden');
+                document.getElementById('scanner-container').classList.add('hidden');
                 document.getElementById('generate-view').classList.remove('hidden');
                 cleanupScanner();
             } else if (view === 'history') {
-                document.getElementById('scanner-container').classList.remove('hidden');
+                // Show history view
                 document.getElementById('scanner-view').classList.add('hidden');
                 document.getElementById('generate-view').classList.add('hidden');
+                document.getElementById('scanner-container').classList.remove('hidden');
                 cleanupScanner();
                 populateHistory();
             }
         });
     });
 
-    // Handle center scan button
-    if (centerBtn) {
-        centerBtn.addEventListener('click', () => {
-            // Remove active state from nav buttons
-            navBtns.forEach(btn => btn.classList.remove('active'));
+    // Handle center button (scanner)
+    document.querySelectorAll('.center-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            // Remove active class from all nav buttons
+            document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
+            btn.classList.add('active');
             
-            // Hide other views
+            // Hide all views
             document.getElementById('scanner-container').classList.add('hidden');
             document.getElementById('generate-view').classList.add('hidden');
             
-            // Show and initialize scanner
+            // Show scanner view and start scanner
             document.getElementById('scanner-view').classList.remove('hidden');
             initScanner();
         });
-    }
+    });
 }
 
 // Update tab functionality
 function initTabs() {
-    const tabContainer = document.querySelector('.tab-container');
-    const tabs = tabContainer.querySelectorAll('.tab-btn');
-    
-    tabs.forEach(tab => {
-        tab.addEventListener('click', () => {
-            // Remove active class from all tabs
-            tabs.forEach(t => t.classList.remove('active'));
-            // Add active class to clicked tab
-            tab.classList.add('active');
+    const tabBtns = document.querySelectorAll('.tab-btn');
+    tabBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            tabBtns.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
             
-            // Update history based on selected tab
-            if (tab.textContent.trim() === 'Scan') {
-                showScannedHistory();
-            } else if (tab.textContent.trim() === 'Create') {
+            if (btn.textContent === 'Create') {
+                // Show only generated QR codes
                 showGeneratedHistory();
+            } else {
+                // Show only scanned QR codes
+                showScannedHistory();
             }
         });
     });
 }
 
-// Add function to show only scanned history
-function showScannedHistory() {
-    const user = auth.currentUser;
-    if (!user) return;
-
-    const historyList = document.querySelector('.history-list');
-    historyList.innerHTML = '';
-
-    database.ref(`scans/${user.uid}`).once('value')
-        .then((snapshot) => {
-            const historyItems = [];
-            snapshot.forEach(child => {
-                historyItems.push({
-                    id: child.key,
-                    type: 'scan',
-                    ...child.val()
-                });
-            });
-
-            // Sort by timestamp
-            historyItems.sort((a, b) => b.timestamp - a.timestamp);
-
-            // Render items
-            historyList.innerHTML = historyItems.map(item => createHistoryItem(item)).join('');
-        });
-}
-
-// Add function to show only generated QR history
+// Function to show generated QR history
 function showGeneratedHistory() {
-    const user = auth.currentUser;
-    if (!user) return;
-
     const historyList = document.querySelector('.history-list');
-    historyList.innerHTML = '';
-
-    database.ref(`generated_qr/${user.uid}`).once('value')
-        .then((snapshot) => {
-            const historyItems = [];
-            snapshot.forEach(child => {
-                historyItems.push({
-                    id: child.key,
-                    type: 'generated',
-                    ...child.val()
+    const user = auth.currentUser;
+    
+    if (user) {
+        database.ref('generated_qr/' + user.uid)
+            .orderByChild('timestamp')
+            .limitToLast(10)
+            .once('value')
+            .then((snapshot) => {
+                const historyItems = [];
+                snapshot.forEach((childSnapshot) => {
+                    const item = childSnapshot.val();
+                    historyItems.push({
+                        id: childSnapshot.key,
+                        type: 'generated',
+                        content: item.content,
+                        timestamp: item.timestamp
+                    });
                 });
+                
+                // Sort by timestamp (newest first)
+                historyItems.sort((a, b) => b.timestamp - a.timestamp);
+                
+                // Update history list
+                historyList.innerHTML = historyItems.length > 0 ? 
+                    historyItems.map(item => createHistoryItem(item)).join('') :
+                    '<div class="empty-state">No generated QR codes yet</div>';
+                
+                // Add delete functionality
+                addDeleteHandlers();
             });
-
-            // Sort by timestamp
-            historyItems.sort((a, b) => b.timestamp - a.timestamp);
-
-            // Render items
-            historyList.innerHTML = historyItems.map(item => createHistoryItem(item)).join('');
-        });
+    }
 }
 
-// Update populateHistory to show scanned history by default
-function populateHistory() {
-    const activeTab = document.querySelector('.tab-btn.active');
-    if (activeTab) {
-        if (activeTab.textContent.trim() === 'Create') {
-            showGeneratedHistory();
-        } else {
-            showScannedHistory();
-        }
-    } else {
-        showScannedHistory(); // Default to scanned history
+// Function to show scanned QR history
+function showScannedHistory() {
+    const historyList = document.querySelector('.history-list');
+    const user = auth.currentUser;
+    
+    if (user) {
+        Promise.all([
+            database.ref('scans/' + user.uid).orderByChild('timestamp').limitToLast(10).once('value'),
+            database.ref('verifications/' + user.uid).orderByChild('timestamp').limitToLast(10).once('value')
+        ]).then(([scansSnapshot, verificationsSnapshot]) => {
+            const historyItems = [];
+            
+            // Add scans
+            scansSnapshot.forEach((childSnapshot) => {
+                const item = childSnapshot.val();
+                historyItems.push({
+                    id: childSnapshot.key,
+                    type: 'scan',
+                    content: item.content,
+                    timestamp: item.timestamp
+                });
+            });
+            
+            // Add verifications
+            verificationsSnapshot.forEach((childSnapshot) => {
+                const item = childSnapshot.val();
+                historyItems.push({
+                    id: childSnapshot.key,
+                    type: 'verification',
+                    content: item.assetCode,
+                    timestamp: item.timestamp,
+                    comments: item.comments,
+                    location: item.location
+                });
+            });
+            
+            // Sort by timestamp
+            historyItems.sort((a, b) => b.timestamp - a.timestamp);
+            
+            // Update history list
+            historyList.innerHTML = historyItems.length > 0 ? 
+                historyItems.map(item => createHistoryItem(item)).join('') :
+                '<div class="empty-state">No scanned QR codes yet</div>';
+            
+            // Add delete functionality
+            addDeleteHandlers();
+        });
     }
 }
 
@@ -946,21 +1004,73 @@ document.addEventListener('visibilitychange', () => {
 // Add cleanup on page unload
 window.addEventListener('beforeunload', cleanupScanner);
 
+// Update populateHistory function to include verifications
+function populateHistory() {
+    const user = auth.currentUser;
+    if (!user) return;
+
+    const historyList = document.querySelector('.history-list');
+    historyList.innerHTML = ''; // Clear existing items
+
+    // Get all types of history items
+    Promise.all([
+        database.ref(`scans/${user.uid}`).once('value'),
+        database.ref(`generated_qr/${user.uid}`).once('value'),
+        database.ref(`verifications/${user.uid}`).once('value')
+    ]).then(([scans, generated, verifications]) => {
+        const historyItems = [];
+
+        // Add scan items
+        scans.forEach(child => {
+            historyItems.push({
+                id: child.key,
+                type: 'scan',
+                ...child.val()
+            });
+        });
+
+        // Add generated QR items
+        generated.forEach(child => {
+            historyItems.push({
+                id: child.key,
+                type: 'generated',
+                ...child.val()
+            });
+        });
+
+        // Add verification items
+        verifications.forEach(child => {
+            historyItems.push({
+                id: child.key,
+                type: 'verification',
+                ...child.val()
+            });
+        });
+
+        // Sort by timestamp
+        historyItems.sort((a, b) => b.timestamp - a.timestamp);
+
+        // Render items
+        historyList.innerHTML = historyItems.map(item => createHistoryItem(item)).join('');
+    });
+}
+
 // Update createHistoryItem function
 function createHistoryItem(item) {
     const date = new Date(item.timestamp).toLocaleString();
     let icon = 'fa-qrcode';
-    let content = item.content || item.assetCode || 'Unknown content';
-    let statusIcon = '';
+    let content = item.content || item.assetCode || 'Unknown content'; // Add fallback for content
     
+    // Determine icon based on content type
     if (content.startsWith('AST/')) {
         icon = 'fa-box';
-        // Add verification status icon
-        if (item.verified) {
-            statusIcon = '<i class="fas fa-check-circle" style="color: #2ed573; margin-left: 8px;"></i>';
-        }
     } else if (content.startsWith('http')) {
         icon = 'fa-link';
+    } else if (item.type === 'verification') {
+        icon = 'fa-check-circle';
+        content = item.assetCode || content;
+    } else if (item.type === 'generated') {
+        icon = 'fa-qrcode';
     }
 
     return `
@@ -973,10 +1083,7 @@ function createHistoryItem(item) {
                 <i class="fas ${icon}"></i>
             </div>
             <div class="history-content">
-                <div class="history-title">
-                    ${content}
-                    ${statusIcon}
-                </div>
+                <div class="history-title">${content}</div>
                 <div class="history-subtitle">
                     <i class="fas fa-clock"></i>
                     <span>${date}</span>
@@ -1035,13 +1142,11 @@ function handleHistoryItemClick(element) {
                 });
 
                 assetPage.innerHTML = `
-                    <div class="top-nav">
-                        <div class="nav-left">
-                            <button class="back-btn">
-                                <i class="fas fa-arrow-left"></i>
-                            </button>
-                            <h1>Asset Details</h1>
-                        </div>
+                    <div class="asset-header">
+                        <button class="back-btn">
+                            <i class="fas fa-arrow-left"></i>
+                        </button>
+                        <h2>Asset Details</h2>
                     </div>
 
                     <div class="asset-content">
@@ -1487,71 +1592,6 @@ function showMenu() {
         if (!e.target.closest('#menu-btn') && !e.target.closest('.menu-dropdown')) {
             menuDropdown.classList.remove('show');
             setTimeout(() => menuDropdown.remove(), 300);
-        }
-    });
-}
-
-// Update the QR code generation view
-function initGenerateView() {
-    const generateView = document.getElementById('generate-view');
-    
-    // Add navigation bar
-    const nav = document.createElement('div');
-    nav.className = 'top-nav';
-    nav.innerHTML = `
-        <div class="nav-left">
-            <button class="back-btn" onclick="closeGenerateView()">
-                <i class="fas fa-arrow-left"></i>
-            </button>
-            <h1>Generate QR</h1>
-        </div>
-    `;
-    
-    // Insert nav at the beginning of generate view
-    generateView.insertBefore(nav, generateView.firstChild);
-}
-
-// Add close function
-function closeGenerateView() {
-    document.getElementById('generate-view').classList.add('hidden');
-    document.getElementById('scanner-container').classList.remove('hidden');
-    
-    // Update active nav button
-    document.querySelectorAll('.nav-btn').forEach(btn => {
-        btn.classList.remove('active');
-        if (btn.dataset.view === 'history') {
-            btn.classList.add('active');
-        }
-    });
-}
-
-// Call this when initializing the app
-document.addEventListener('DOMContentLoaded', () => {
-    initGenerateView();
-});
-
-// Update closeScanner function
-function closeScanner() {
-    if (currentScanner) {
-        currentScanner.stop();
-        
-        // Stop video stream
-        const preview = document.getElementById('preview');
-        if (preview.srcObject) {
-            const tracks = preview.srcObject.getTracks();
-            tracks.forEach(track => track.stop());
-            preview.srcObject = null;
-        }
-    }
-    
-    document.getElementById('scanner-view').classList.add('hidden');
-    document.getElementById('scanner-container').classList.remove('hidden');
-    
-    // Update active nav button
-    document.querySelectorAll('.nav-btn').forEach(btn => {
-        btn.classList.remove('active');
-        if (btn.dataset.view === 'history') {
-            btn.classList.add('active');
         }
     });
 } 
