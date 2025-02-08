@@ -98,21 +98,18 @@ authForm.addEventListener('submit', async (e) => {
             });
             // Show success message
             showToast('Registration successful! Welcome aboard! 🎉', 'success');
-            // Show scanner container directly
-            document.getElementById('auth-container').classList.add('hidden');
-            document.getElementById('scanner-container').classList.remove('hidden');
+            // Show generate view by default
+            handleLoginSuccess('generate');
         } else {
             // Login existing user
             await auth.signInWithEmailAndPassword(email, password);
             // Show success message
             showToast('Welcome back! 👋', 'success');
-            // Show scanner container directly
-            document.getElementById('auth-container').classList.add('hidden');
-            document.getElementById('scanner-container').classList.remove('hidden');
+            // Show generate view by default
+            handleLoginSuccess('generate');
         }
     } catch (error) {
         console.error('Auth error:', error);
-        // Show error message
         showToast(getErrorMessage(error.code), 'error');
     }
 });
@@ -1413,16 +1410,7 @@ document.getElementById('generate-close').addEventListener('click', () => {
     document.querySelector('.qr-preview').innerHTML = '';
     
     // Show history view
-    document.getElementById('generate-view').classList.add('hidden');
-    document.getElementById('scanner-container').classList.remove('hidden');
-    
-    // Update active nav button
-    document.querySelectorAll('.nav-btn').forEach(btn => {
-        btn.classList.remove('active');
-        if (btn.dataset.view === 'history') {
-            btn.classList.add('active');
-        }
-    });
+    handleNavigation('history');
 });
 
 // Copy button functionality
@@ -1908,4 +1896,117 @@ function navigateToAssetDetails(url) {
     
     // Load asset details using the URL
     loadAssetDetails(url);
+}
+
+// Function to handle login success
+function handleLoginSuccess() {
+    // Hide auth container
+    document.getElementById('auth-container').classList.add('hidden');
+    
+    // Hide all views first
+    document.querySelectorAll('.container').forEach(container => {
+        container.classList.add('hidden');
+    });
+
+    // Show generate view by default
+    document.getElementById('generate-view').classList.remove('hidden');
+    
+    // Update active state in bottom navigation
+    document.querySelectorAll('.nav-btn').forEach(btn => {
+        btn.classList.remove('active');
+        if (btn.querySelector('i.fa-qrcode')) {
+            btn.classList.add('active');
+        }
+    });
+
+    // Update center button state if needed
+    const centerBtn = document.querySelector('.center-btn');
+    if (centerBtn) {
+        centerBtn.classList.remove('active');
+    }
+}
+
+// Update dashboard information
+function updateDashboard() {
+    // Update current date
+    const dateElement = document.getElementById('current-date');
+    const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+    dateElement.textContent = new Date().toLocaleDateString(undefined, options);
+
+    // Update user name
+    const userName = document.querySelector('.user-name');
+    const user = auth.currentUser;
+    if (user) {
+        userName.textContent = user.email.split('@')[0];
+    }
+
+    // Load recent activities
+    loadRecentActivities();
+}
+
+// Load recent activities
+function loadRecentActivities() {
+    const activityList = document.querySelector('.activity-list');
+    // Example data - replace with actual data from your backend
+    const activities = [
+        { title: 'Scanned Asset AST/24-25/0026', time: '2 hours ago', type: 'scan' },
+        { title: 'Generated QR Code', time: '5 hours ago', type: 'generate' },
+        { title: 'Verified Asset AST/24-25/0025', time: 'Yesterday', type: 'verify' }
+    ];
+
+    activityList.innerHTML = activities.map(activity => `
+        <div class="activity-item">
+            <div class="activity-item-icon">
+                <i class="fas ${getActivityIcon(activity.type)}"></i>
+            </div>
+            <div class="activity-item-details">
+                <div class="activity-item-title">${activity.title}</div>
+                <div class="activity-item-time">${activity.time}</div>
+            </div>
+        </div>
+    `).join('');
+}
+
+// Helper function to get activity icon
+function getActivityIcon(type) {
+    switch(type) {
+        case 'scan': return 'fa-qrcode';
+        case 'generate': return 'fa-plus';
+        case 'verify': return 'fa-check-circle';
+        default: return 'fa-circle';
+    }
+}
+
+// Navigation functions
+function openScanner() {
+    document.getElementById('dashboard-view').classList.add('hidden');
+    document.getElementById('scanner-view').classList.remove('hidden');
+}
+
+function openGenerator() {
+    document.getElementById('dashboard-view').classList.add('hidden');
+    document.getElementById('generate-view').classList.remove('hidden');
+}
+
+function openHistory() {
+    // Implement history view navigation
+}
+
+// Update the navigation handler
+function handleNavigation(view) {
+    // Hide all containers
+    document.querySelectorAll('.container').forEach(container => {
+        container.classList.add('hidden');
+    });
+    
+    // Show selected view
+    document.getElementById(`${view}-view`).classList.remove('hidden');
+    
+    // Update active states in navigation
+    document.querySelectorAll('.nav-btn').forEach(btn => {
+        btn.classList.remove('active');
+        if (btn.dataset.view === view) {
+            btn.classList.add('active');
+        }
+    });
 } 

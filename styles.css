@@ -601,7 +601,6 @@ input:focus {
     transform: translateX(-50%);
     width: 20px;
     height: 3px;
-    background: var(--primary-color);
     border-radius: 2px;
 }
 
@@ -619,7 +618,6 @@ input:focus {
     box-shadow: -5px 0 30px rgba(0, 0, 0, 0.3);
     height: 25%;
     border-radius: 20px;
-}
 }
 
 .menu-dropdown.show {
@@ -2447,9 +2445,6 @@ body.auth-active {
     color: white;
     font-size: 14px;
     z-index: 2000;
-    display: flex;
-    align-items: center;
-    gap: 8px;
 }
 
 .toast-message.show {
@@ -2567,4 +2562,211 @@ body.auth-active {
 
 .toast-message.error i {
     color: #F44336;
+}
+
+/* Dashboard Styles */
+#dashboard-view {
+    background: #121212;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.header-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    padding-top: max(16px, env(safe-area-inset-top));
+}
+
+.user-profile {
+    width: 40px;
+    height: 40px;
+    border-radius: 20px;
+    background: rgba(255, 255, 255, 0.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 20px;
+}
+
+.dashboard-content {
+    flex: 1;
+    padding: 20px;
+    padding-top: 0;
+    padding-bottom: calc(80px + env(safe-area-inset-bottom));
+    overflow-y: auto;
+}
+
+/* Welcome Section */
+.welcome-section {
+    margin-bottom: 24px;
+}
+
+.welcome-section h3 {
+    color: white;
+    font-size: 24px;
+    margin-bottom: 4px;
+}
+
+.date-info {
+    color: #888;
+    font-size: 14px;
+}
+
+/* Action Grid */
+.action-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.action-tile {
+    background: #2D2D2D;
+    border: none;
+    border-radius: 16px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    color: white;
+    transition: all 0.2s;
+}
+
+.action-tile:active {
+    transform: scale(0.98);
+    background: #3D3D3D;
+}
+
+.action-icon {
+    width: 48px;
+    height: 48px;
+    background: rgba(255, 165, 0, 0.15);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.action-icon i {
+    font-size: 24px;
+    color: #FFA500;
+}
+
+/* Dashboard Sections */
+.dashboard-section {
+    background: #2D2D2D;
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.section-header h3 {
+    color: white;
+    font-size: 18px;
+    margin: 0;
+}
+
+.view-all-btn {
+    background: none;
+    border: none;
+    color: #FFA500;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+/* Activity Cards */
+.activity-cards {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+}
+
+.activity-card {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 12px;
+    padding: 16px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.activity-icon {
+    width: 40px;
+    height: 40px;
+    background: rgba(255, 165, 0, 0.15);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #FFA500;
+}
+
+.activity-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.activity-count {
+    color: white;
+    font-size: 20px;
+    font-weight: 600;
+}
+
+.activity-label {
+    color: #888;
+    font-size: 12px;
+}
+
+/* Activity List */
+.activity-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.activity-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 12px;
+}
+
+.activity-item-icon {
+    width: 40px;
+    height: 40px;
+    background: rgba(255, 165, 0, 0.15);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #FFA500;
+}
+
+.activity-item-details {
+    flex: 1;
+}
+
+.activity-item-title {
+    color: white;
+    font-size: 14px;
+    margin-bottom: 4px;
+}
+
+.activity-item-time {
+    color: #888;
+    font-size: 12px;
 }

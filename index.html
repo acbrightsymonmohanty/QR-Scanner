@@ -208,18 +208,18 @@
         </div>
 
         <nav class="bottom-nav">
-            <button class="nav-btn active" data-view="generate">
-                <i class="fas fa-qrcode"></i>
-                <span>Generate</span>
-            </button>
-            <div class="center-btn-container">
-                <button class="center-btn">
-                    <i class="fas fa-qrcode"></i>
-                </button>
-            </div>
             <button class="nav-btn" data-view="history">
                 <i class="fas fa-history"></i>
                 <span>History</span>
+            </button>
+            <div class="center-btn-container">
+                <button class="center-btn" onclick="openScanner()">
+                    <i class="fas fa-qrcode"></i>
+                </button>
+            </div>
+            <button class="nav-btn active" data-view="generate">
+                <i class="fas fa-qrcode"></i>
+                <span>Generate</span>
             </button>
         </nav>
     </div>
@@ -356,6 +356,110 @@
     </div>
 
     <input type="file" id="gallery-input" accept="image/*" class="hidden">
+
+    <!-- Dashboard View -->
+    <div id="dashboard-view" class="container hidden">
+        <header class="app-header">
+            <div class="header-content">
+                <h2>Dashboard</h2>
+                <div class="user-profile">
+                    <i class="fas fa-user-circle"></i>
+                </div>
+            </div>
+        </header>
+
+        <div class="dashboard-content">
+            <!-- Welcome Section -->
+            <div class="welcome-section">
+                <h3>Welcome back, <span class="user-name">User</span></h3>
+                <p class="date-info">Today, <span id="current-date"></span></p>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="action-grid">
+                <button class="action-tile" onclick="openScanner()">
+                    <div class="action-icon">
+                        <i class="fas fa-qrcode"></i>
+                    </div>
+                    <span>Scan QR</span>
+                </button>
+                <button class="action-tile" onclick="openGenerator()">
+                    <div class="action-icon">
+                        <i class="fas fa-plus"></i>
+                    </div>
+                    <span>Generate</span>
+                </button>
+                <button class="action-tile" onclick="openHistory()">
+                    <div class="action-icon">
+                        <i class="fas fa-history"></i>
+                    </div>
+                    <span>History</span>
+                </button>
+                <button class="action-tile">
+                    <div class="action-icon">
+                        <i class="fas fa-cog"></i>
+                    </div>
+                    <span>Settings</span>
+                </button>
+            </div>
+
+            <!-- Activity Overview -->
+            <div class="dashboard-section">
+                <div class="section-header">
+                    <h3>Activity Overview</h3>
+                    <button class="view-all-btn">View All</button>
+                </div>
+                <div class="activity-cards">
+                    <div class="activity-card">
+                        <div class="activity-icon">
+                            <i class="fas fa-check-circle"></i>
+                        </div>
+                        <div class="activity-info">
+                            <span class="activity-count">28</span>
+                            <span class="activity-label">Total Scans</span>
+                        </div>
+                    </div>
+                    <div class="activity-card">
+                        <div class="activity-icon">
+                            <i class="fas fa-clock"></i>
+                        </div>
+                        <div class="activity-info">
+                            <span class="activity-count">15</span>
+                            <span class="activity-label">Pending</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Activity -->
+            <div class="dashboard-section">
+                <div class="section-header">
+                    <h3>Recent Activity</h3>
+                    <button class="view-all-btn">View All</button>
+                </div>
+                <div class="activity-list">
+                    <!-- Activity items will be added dynamically -->
+                </div>
+            </div>
+        </div>
+
+        <nav class="bottom-nav">
+            <button class="nav-btn active">
+                <i class="fas fa-home"></i>
+                <span>Home</span>
+            </button>
+            <div class="center-btn-container">
+                <button class="center-btn" onclick="openScanner()">
+                    <i class="fas fa-qrcode"></i>
+                </button>
+            </div>
+            <button class="nav-btn">
+                <i class="fas fa-history"></i>
+                <span>History</span>
+            </button>
+        </nav>
+    </div>
+
     <script src="app.js"></script>
 </body>
 </html> 
