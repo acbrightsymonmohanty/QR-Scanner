@@ -37,7 +37,6 @@ auth.onAuthStateChanged((user) => {
         initNavigation();
         initTabs();
         initMenu();
-        initHistoryItemClick();
         populateHistory();
     } else {
         // No user is signed in
@@ -215,138 +214,74 @@ let currentScanner = null;
 
 // Update the initScanner function
 function initScanner() {
-    // Stop any existing scanner
-    if (currentScanner) {
-        currentScanner.stop();
-    }
-
-    const preview = document.getElementById('preview');
-    currentScanner = new Instascan.Scanner({
-        video: preview,
-        mirror: false,
-        continuous: true,
-        captureImage: true,
-        scanPeriod: 5,
-        backgroundScan: true,
-        refractoryPeriod: 5000,
-        willReadFrequently: true
-    });
-
-    // Add scan event listener
-    currentScanner.addListener('scan', handleScanResult);
-
-    let cameras = [];
-    let currentCameraIndex = 0;
-
-    // Start camera with better error handling
-    Instascan.Camera.getCameras()
-        .then(availableCameras => {
-            cameras = availableCameras;
-            if (cameras.length > 0) {
-                // Try to find back camera first
-                const backCamera = cameras.find(camera => 
-                    camera.name.toLowerCase().includes('back') || 
-                    camera.name.toLowerCase().includes('environment')
-                );
-                currentCameraIndex = backCamera ? cameras.indexOf(backCamera) : 0;
-                return currentScanner.start(cameras[currentCameraIndex]);
-            } else {
-                throw new Error('No cameras found');
-            }
+    // Request camera permission first
+    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        navigator.mediaDevices.getUserMedia({ 
+            video: { 
+                facingMode: { ideal: 'environment' },
+                width: { ideal: 1280 },
+                height: { ideal: 720 }
+            },
+            audio: false 
         })
-        .catch(error => {
-            console.error('Error starting camera:', error);
-            alert('Error accessing camera. Please make sure camera permissions are granted.');
-        });
-
-    // Handle gallery selection
-    const galleryBtn = document.querySelector('.control-btn:nth-child(1)');
-    const flashBtn = document.querySelector('.control-btn:nth-child(2)');
-    const switchBtn = document.querySelector('.control-btn:nth-child(3)');
-    const galleryInput = document.getElementById('gallery-input');
-
-    // Gallery button functionality
-    galleryBtn.addEventListener('click', () => {
-        galleryInput.click();
-    });
-
-    // Flash button functionality
-    let isFlashOn = false;
-    flashBtn.addEventListener('click', async () => {
-        try {
-            if (!preview.srcObject) return;
-            const track = preview.srcObject.getVideoTracks()[0];
-            const capabilities = await track.getCapabilities();
+        .then(function(stream) {
+            const scannerView = document.getElementById('scanner-view');
             
-            if (capabilities.torch) {
-                isFlashOn = !isFlashOn;
-                await track.applyConstraints({
-                    advanced: [{ torch: isFlashOn }]
-                });
-                flashBtn.innerHTML = isFlashOn ? 
-                    '<i class="fas fa-bolt" style="color: var(--primary-color)"></i>' : 
-                    '<i class="fas fa-bolt"></i>';
-            } else {
-                alert('Your device does not support flash');
+            // Add navigation bar if it doesn't exist
+            if (!scannerView.querySelector('.top-nav')) {
+                const nav = document.createElement('div');
+                nav.className = 'top-nav';
+                nav.innerHTML = `
+                    <div class="nav-left">
+                        <button class="back-btn" onclick="closeScanner()">
+                            <i class="fas fa-arrow-left"></i>
+                        </button>
+                        <h1>Scan QR</h1>
+                    </div>
+                `;
+                scannerView.insertBefore(nav, scannerView.firstChild);
             }
-        } catch (err) {
-            console.error('Error toggling flash:', err);
-            alert('Error toggling flash');
-        }
-    });
 
-    // Camera switch button functionality
-    switchBtn.addEventListener('click', () => {
-        if (cameras.length > 1) {
-            currentCameraIndex = (currentCameraIndex + 1) % cameras.length;
-            currentScanner.stop();
-            currentScanner.start(cameras[currentCameraIndex])
-                .then(() => {
-                    // Update video style based on camera type
-                    const isBackCamera = cameras[currentCameraIndex].name.toLowerCase().includes('back') ||
-                                      cameras[currentCameraIndex].name.toLowerCase().includes('environment');
-                    preview.style.transform = isBackCamera ? 'scaleX(-1)' : 'scaleX(1)';
-                })
-                .catch(err => {
-                    console.error('Error switching camera:', err);
-                    alert('Error switching camera');
-                });
-        } else {
-            alert('Only one camera is available');
-        }
-    });
+            // Stop any existing scanner
+            if (currentScanner) {
+                currentScanner.stop();
+            }
 
-    // Add gallery input handler
-    galleryInput.addEventListener('change', (e) => {
-        const file = e.target.files[0];
-        if (file) {
-            handleGalleryImage(file);
-        }
-        // Clear input value to allow selecting the same file again
-        e.target.value = '';
-    });
+            const preview = document.getElementById('preview');
+            
+            // Set up the video stream
+            preview.srcObject = stream;
+            preview.play();
 
-    // Add close button functionality
-    const closeBtn = document.querySelector('.close-scanner-btn');
-    if (closeBtn) {
-        closeBtn.addEventListener('click', () => {
-            // Stop the scanner
-            cleanupScanner();
-            
-            // Hide scanner view
-            document.getElementById('scanner-view').classList.add('hidden');
-            
-            // Show scanner container
-            document.getElementById('scanner-container').classList.remove('hidden');
-            
-            // Update active nav button
-            document.querySelectorAll('.nav-btn').forEach(btn => {
-                btn.classList.remove('active');
-                if (btn.dataset.view === 'history') {
-                    btn.classList.add('active');
-                }
+            // Initialize scanner
+            currentScanner = new Instascan.Scanner({
+                video: preview,
+                mirror: false,
+                continuous: true,
+                captureImage: true,
+                scanPeriod: 5,
+                backgroundScan: true,
+                refractoryPeriod: 5000,
+                willReadFrequently: true
             });
+
+            // Add scan event listener
+            currentScanner.addListener('scan', handleScanResult);
+
+            // Start scanner
+            currentScanner.start();
+        })
+        .catch(function(error) {
+            console.error('Camera access error:', error);
+            alert('Error accessing camera. Please make sure camera permissions are granted.');
+            
+            // Close scanner view and return to history
+            closeScanner();
         });
+    } else {
+        console.error('getUserMedia is not supported');
+        alert('Camera access is not supported on this device');
+        closeScanner();
     }
 }
 
@@ -424,272 +359,219 @@ async function readQRFromImage(file) {
 
 // Update handleScanResult function
 function handleScanResult(content) {
-    // Store scan in Firebase
     const user = auth.currentUser;
     if (user) {
         database.ref('scans/' + user.uid).push({
             content: content,
             timestamp: Date.now()
+        }).then((ref) => {
+            database.ref(`scans/${user.uid}/${ref.key}`).once('value')
+                .then((snapshot) => {
+                    const data = snapshot.val();
+                    if (data) {
+                        showScanDetails(data);
+                    }
+                });
         });
     }
+}
 
-    // Show scan result modal
-    const resultModal = document.getElementById('result-modal');
-    const resultText = document.getElementById('scan-result');
-    const openBtn = document.getElementById('open-btn');
+// Update showScanDetails function
+function showScanDetails(data) {
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.innerHTML = `
+        <div class="modal-content">
+            <h3>Scan Result</h3>
+            <div class="scan-result-container">
+                <div class="scan-info">
+                    <p class="scan-content">${data.content}</p>
+                    <p class="scan-date">
+                        <i class="fas fa-clock"></i>
+                        ${new Date(data.timestamp).toLocaleString()}
+                    </p>
+                </div>
+                ${data.content.startsWith('http') ? `
+                    <div class="scan-url">
+                        <i class="fas fa-link"></i>
+                        <a href="${data.content}" target="_blank">${data.content}</a>
+                    </div>
+                ` : ''}
+            </div>
+            <div class="modal-buttons">
+                ${data.content.startsWith('http') ? 
+                    `<button class="primary-btn" onclick="window.open('${data.content}', '_blank')">
+                        <i class="fas fa-external-link-alt"></i> Open Link
+                    </button>` : 
+                    data.content.startsWith('AST/') ?
+                    `<button class="primary-btn" onclick="showAssetDetails('${data.content}'); this.closest('.modal').remove();">
+                        <i class="fas fa-info-circle"></i> View Asset
+                    </button>` :
+                    `<button class="primary-btn" onclick="copyToClipboard('${data.content}')">
+                        <i class="fas fa-copy"></i> Copy Text
+                    </button>`
+                }
+                <button class="secondary-btn" onclick="this.closest('.modal').remove()">Close</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
 
-    try {
-        // Check if content is a URL
-        if (content.startsWith('http://') || content.startsWith('https://')) {
-            resultText.textContent = content;
-            openBtn.textContent = 'Open Link';
-            openBtn.dataset.type = 'url';
-            openBtn.dataset.url = content;
-        }
-        // Check if content is an asset code
-        else if (content.match(/^AST\/\d{2}-\d{2}\/\d{4}$/)) {
-            resultText.textContent = content;
-            openBtn.textContent = 'View Details';
-            openBtn.dataset.type = 'asset';
-            openBtn.dataset.content = content;
-        }
-        // Handle other types of content
-        else {
-            resultText.textContent = content;
-            openBtn.textContent = 'Copy';
-            openBtn.dataset.type = 'text';
-            openBtn.dataset.content = content;
-        }
-    } catch (e) {
-        // If any error, show content as plain text
-        resultText.textContent = content;
-        openBtn.textContent = 'Copy';
-        openBtn.dataset.type = 'text';
-        openBtn.dataset.content = content;
-    }
-
-    // Show the result modal
-    resultModal.classList.remove('hidden');
-    
-    // Update history
+    // Update history after showing scan details
     populateHistory();
 }
 
-// Function to show asset details page
+// Update showAssetDetails function
 function showAssetDetails(assetCode) {
     const assetPage = document.createElement('div');
     assetPage.className = 'container asset-page';
     
-    assetPage.innerHTML = `
-        <header class="app-header asset-header">
-            <button class="back-btn">
-                <i class="fas fa-arrow-left"></i>
-            </button>
-            <h2>QR Code Data</h2>
-        </header>
+    // Get verification history for this asset
+    const user = auth.currentUser;
+    database.ref(`verifications/${user.uid}`)
+        .orderByChild('assetCode')
+        .equalTo(assetCode)
+        .once('value')
+        .then((snapshot) => {
+            const verifications = [];
+            snapshot.forEach(child => {
+                verifications.push({
+                    ...child.val(),
+                    id: child.key
+                });
+            });
 
-        <div class="asset-content">
-            <div class="section">
-                <h3 class="section-title">Asset Details</h3>
-                <div class="detail-items">
-                    <div class="detail-item">
-                        <span class="label">Name</span>
-                        <span class="value">Na</span>
-                    </div>
-                    <div class="detail-item">
-                        <span class="label">Code</span>
-                        <span class="value">${assetCode}</span>
-                    </div>
-                    <div class="detail-item">
-                        <span class="label">MFG Date</span>
-                        <span class="value">Na</span>
-                    </div>
-                    <div class="detail-item">
-                        <span class="label">Purchase Date</span>
-                        <span class="value">Na</span>
+            assetPage.innerHTML = `
+                <div class="top-nav">
+                    <div class="nav-left">
+                        <button class="back-btn">
+                            <i class="fas fa-arrow-left"></i>
+                        </button>
+                        <h1>Asset Details</h1>
                     </div>
                 </div>
-            </div>
 
-            <div class="section">
-                <h3 class="section-title">Asset Images</h3>
-                <div class="asset-images" id="assetImages">
-                    <div class="image-item" onclick="showFullImage(this)">
-                        <img src="path/to/image1.jpg" alt="Asset Image">
-                    </div>
-                    <div class="image-item" onclick="showFullImage(this)">
-                        <img src="path/to/image2.jpg" alt="Asset Image">
-                    </div>
-                    <div class="image-item" onclick="showFullImage(this)">
-                        <img src="path/to/image3.jpg" alt="Asset Image">
-                    </div>
-                </div>
-            </div>
-
-            <div class="section">
-                <h3 class="section-title">Asset Documents</h3>
-                <div class="documents-list">
-                    <div class="document-item">
-                        <div class="doc-info">
-                            <i class="fas fa-file-pdf"></i>
-                            <span class="doc-name">Document 1</span>
+                <div class="asset-content">
+                    <div class="section">
+                        <h3 class="section-title">Asset Information</h3>
+                        <div class="detail-items">
+                            <div class="detail-item">
+                                <span class="label">Asset Code</span>
+                                <span class="value">${assetCode}</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="label">Status</span>
+                                <span class="value">Active</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="label">Location</span>
+                                <span class="value">Main Warehouse</span>
+                            </div>
                         </div>
-                        <a href="path/to/document1.pdf" download class="download-btn">
-                            <i class="fas fa-download"></i>
-                        </a>
+                    </div>
+
+                    ${verifications.length > 0 ? `
+                        <div class="section">
+                            <h3 class="section-title">Verification History</h3>
+                            <div class="verification-history">
+                                ${verifications.map(v => `
+                                    <div class="verification-item">
+                                        <div class="verification-header">
+                                            <i class="fas fa-check-circle"></i>
+                                            <span class="verification-date">
+                                                ${new Date(v.timestamp).toLocaleString()}
+                                            </span>
+                                        </div>
+                                        <div class="verification-details">
+                                            <div class="verification-comment">
+                                                ${v.comments || 'No comments'}
+                                            </div>
+                                            <div class="verification-location">
+                                                <i class="fas fa-map-marker-alt"></i>
+                                                ${v.location || 'Location not available'}
+                                            </div>
+                                            <div class="verification-user">
+                                                <i class="fas fa-user"></i>
+                                                ${v.userEmail}
+                                            </div>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    ` : ''}
+
+                    <div class="section verification-section">
+                        <h3 class="section-title">Verify Asset</h3>
+                        <div class="verification-form">
+                            <div class="input-group">
+                                <label class="input-label">Comments</label>
+                                <textarea id="verification-comments" placeholder="Enter your comments about this asset..."></textarea>
+                            </div>
+                            <button id="verify-btn" class="primary-btn">
+                                <i class="fas fa-check-circle"></i> Verify Asset
+                            </button>
+                        </div>
                     </div>
                 </div>
-            </div>
+            `;
 
-            <div class="section verification-section">
-                <h3 class="section-title">Verify Asset</h3>
-                <div class="verification-form">
-                    <div class="input-group">
-                        <label class="input-label">Comments</label>
-                        <textarea id="verification-comments" placeholder="Enter your comments about this asset..."></textarea>
-                    </div>
-                    <button id="verify-btn" class="primary-btn">
-                        <i class="fas fa-check-circle"></i> Verify Asset
-                    </button>
-                </div>
-            </div>
-        </div>
-    `;
-
-    // Add image viewer functionality with fixed close button
-    window.showFullImage = function(element) {
-        const imgSrc = element.querySelector('img').src;
-        const viewer = document.createElement('div');
-        viewer.className = 'image-viewer';
-        viewer.innerHTML = `
-            <div class="viewer-content">
-                <img src="${imgSrc}" alt="Full size image">
-                <button class="close-viewer" onclick="closeImageViewer(this)">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-        `;
-        document.body.appendChild(viewer);
-
-        // Close viewer on background click
-        viewer.addEventListener('click', (e) => {
-            if (e.target.classList.contains('image-viewer')) {
-                closeImageViewer(viewer.querySelector('.close-viewer'));
-            }
-        });
-    };
-
-    // Add close viewer function to window scope
-    window.closeImageViewer = function(closeBtn) {
-        const viewer = closeBtn.closest('.image-viewer');
-        if (viewer) {
-            viewer.classList.add('fade-out');
-            setTimeout(() => viewer.remove(), 300);
-        }
-    };
-
-    // Add verification functionality
-    const verifyBtn = assetPage.querySelector('#verify-btn');
-    verifyBtn.addEventListener('click', () => {
-        showVerificationConfirm(assetCode);
-    });
-
-    // Add back button functionality
-    assetPage.querySelector('.back-btn').addEventListener('click', () => {
-        assetPage.remove();
-        document.getElementById('scanner-container').classList.remove('hidden');
-        // Update active nav button
-        document.querySelectorAll('.nav-btn').forEach(btn => {
-            btn.classList.remove('active');
-            if (btn.dataset.view === 'history') {
-                btn.classList.add('active');
-            }
-        });
-    });
-
-    // Hide scanner view and show asset page
-    document.getElementById('scanner-view').classList.add('hidden');
-    document.body.appendChild(assetPage);
-}
-
-// Update showVerificationConfirm function with improved navigation
-function showVerificationConfirm(assetCode) {
-    const comments = document.getElementById('verification-comments').value;
-    const modal = document.createElement('div');
-    modal.className = 'modal verification-modal';
-    
-    modal.innerHTML = `
-        <div class="modal-content">
-            <h3>Confirm Verification</h3>
-            <p>Are you sure you want to verify this asset?</p>
-            <div class="location-info">
-                <i class="fas fa-map-marker-alt"></i>
-                <span id="location-text">Getting location...</span>
-            </div>
-            <div class="modal-buttons">
-                <button class="secondary-btn" onclick="this.closest('.modal').remove()">No</button>
-                <button class="primary-btn" id="confirm-verify">Yes</button>
-            </div>
-        </div>
-    `;
-
-    document.body.appendChild(modal);
-
-    // Get location
-    if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-            (position) => {
-                const locationText = modal.querySelector('#location-text');
-                const location = `${position.coords.latitude}, ${position.coords.longitude}`;
-                locationText.textContent = location;
-
-                // Add confirm button functionality
-                modal.querySelector('#confirm-verify').addEventListener('click', () => {
-                    const user = auth.currentUser;
-                    if (user) {
-                        // Save verification to Firebase
-                        const verificationData = {
-                            assetCode: assetCode,
-                            timestamp: Date.now(),
-                            comments: comments,
-                            location: location,
-                            userEmail: user.email,
-                            verified: true
-                        };
-
-                        database.ref(`verifications/${user.uid}`).push(verificationData)
-                            .then(() => {
-                                // Remove modal and asset page
-                                modal.remove();
-                                document.querySelector('.asset-page').remove();
-                                
-                                // Show success message
-                                showSuccessMessage('Asset verified successfully');
-                                
-                                // Show history view and update list
-                                document.getElementById('scanner-container').classList.remove('hidden');
-                                document.querySelectorAll('.nav-btn').forEach(btn => {
-                                    btn.classList.remove('active');
-                                    if (btn.dataset.view === 'history') {
-                                        btn.classList.add('active');
-                                    }
-                                });
-                                populateHistory();
-                            })
-                            .catch(error => {
-                                console.error('Error saving verification:', error);
-                                alert('Error saving verification');
-                            });
+            // Add back button functionality
+            assetPage.querySelector('.back-btn').addEventListener('click', () => {
+                assetPage.remove();
+                document.getElementById('scanner-container').classList.remove('hidden');
+                document.querySelectorAll('.nav-btn').forEach(btn => {
+                    btn.classList.remove('active');
+                    if (btn.dataset.view === 'history') {
+                        btn.classList.add('active');
                     }
                 });
-            },
-            (error) => {
-                console.error('Error getting location:', error);
-                modal.querySelector('.location-info').innerHTML = 
-                    '<i class="fas fa-exclamation-circle"></i> Location unavailable';
-            }
-        );
-    }
+            });
+
+            // Add verify button functionality
+            assetPage.querySelector('#verify-btn').addEventListener('click', () => {
+                showVerificationConfirm(assetCode);
+            });
+
+            // Hide other views and show asset page
+            document.getElementById('scanner-view').classList.add('hidden');
+            document.getElementById('scanner-container').classList.add('hidden');
+            document.getElementById('generate-view').classList.add('hidden');
+            document.body.appendChild(assetPage);
+        });
+}
+
+// Update showVerificationConfirm function
+function showVerificationConfirm(assetCode) {
+    const comments = document.getElementById('verification-comments').value;
+    const user = auth.currentUser;
+    
+    // Add verification to database
+    database.ref(`verifications/${user.uid}`).push({
+        assetCode: assetCode,
+        comments: comments,
+        timestamp: Date.now(),
+        userEmail: user.email,
+        verified: true // Add verified status
+    }).then(() => {
+        // Update scans to mark as verified
+        database.ref(`scans/${user.uid}`)
+            .orderByChild('content')
+            .equalTo(assetCode)
+            .once('value')
+            .then((snapshot) => {
+                snapshot.forEach((child) => {
+                    child.ref.update({ verified: true });
+                });
+                
+                // Close asset details page and refresh history
+                document.querySelector('.asset-page').remove();
+                document.getElementById('scanner-container').classList.remove('hidden');
+                populateHistory();
+            });
+    }).catch(error => {
+        console.error('Error saving verification:', error);
+    });
 }
 
 // Add success message function
@@ -822,153 +704,135 @@ function showHistoryView() {
 
 // Update initNavigation function
 function initNavigation() {
-    // Handle bottom navigation buttons
-    document.querySelectorAll('.nav-btn').forEach(btn => {
+    const navBtns = document.querySelectorAll('.nav-btn');
+    const centerBtn = document.querySelector('.center-btn');
+    
+    // Handle regular nav buttons
+    navBtns.forEach(btn => {
         btn.addEventListener('click', () => {
-            const view = btn.dataset.view;
-            
-            // Remove active class from all nav buttons
-            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+            navBtns.forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
-
-            // Handle view switching
+            
+            const view = btn.dataset.view;
             if (view === 'generate') {
-                // Show generate view
-                document.getElementById('scanner-view').classList.add('hidden');
                 document.getElementById('scanner-container').classList.add('hidden');
+                document.getElementById('scanner-view').classList.add('hidden');
                 document.getElementById('generate-view').classList.remove('hidden');
                 cleanupScanner();
             } else if (view === 'history') {
-                // Show history view
+                document.getElementById('scanner-container').classList.remove('hidden');
                 document.getElementById('scanner-view').classList.add('hidden');
                 document.getElementById('generate-view').classList.add('hidden');
-                document.getElementById('scanner-container').classList.remove('hidden');
                 cleanupScanner();
                 populateHistory();
             }
         });
     });
 
-    // Handle center button (scanner)
-    document.querySelectorAll('.center-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            // Remove active class from all nav buttons
-            document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
-            btn.classList.add('active');
+    // Handle center scan button
+    if (centerBtn) {
+        centerBtn.addEventListener('click', () => {
+            // Remove active state from nav buttons
+            navBtns.forEach(btn => btn.classList.remove('active'));
             
-            // Hide all views
+            // Hide other views
             document.getElementById('scanner-container').classList.add('hidden');
             document.getElementById('generate-view').classList.add('hidden');
             
-            // Show scanner view and start scanner
+            // Show and initialize scanner
             document.getElementById('scanner-view').classList.remove('hidden');
             initScanner();
         });
-    });
+    }
 }
 
 // Update tab functionality
 function initTabs() {
-    const tabBtns = document.querySelectorAll('.tab-btn');
-    tabBtns.forEach(btn => {
-        btn.addEventListener('click', () => {
-            tabBtns.forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
+    const tabContainer = document.querySelector('.tab-container');
+    const tabs = tabContainer.querySelectorAll('.tab-btn');
+    
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            // Remove active class from all tabs
+            tabs.forEach(t => t.classList.remove('active'));
+            // Add active class to clicked tab
+            tab.classList.add('active');
             
-            if (btn.textContent === 'Create') {
-                // Show only generated QR codes
-                showGeneratedHistory();
-            } else {
-                // Show only scanned QR codes
+            // Update history based on selected tab
+            if (tab.textContent.trim() === 'Scan') {
                 showScannedHistory();
+            } else if (tab.textContent.trim() === 'Create') {
+                showGeneratedHistory();
             }
         });
     });
 }
 
-// Function to show generated QR history
-function showGeneratedHistory() {
-    const historyList = document.querySelector('.history-list');
-    const user = auth.currentUser;
-    
-    if (user) {
-        database.ref('generated_qr/' + user.uid)
-            .orderByChild('timestamp')
-            .limitToLast(10)
-            .once('value')
-            .then((snapshot) => {
-                const historyItems = [];
-                snapshot.forEach((childSnapshot) => {
-                    const item = childSnapshot.val();
-                    historyItems.push({
-                        id: childSnapshot.key,
-                        type: 'generated',
-                        content: item.content,
-                        timestamp: item.timestamp
-                    });
-                });
-                
-                // Sort by timestamp (newest first)
-                historyItems.sort((a, b) => b.timestamp - a.timestamp);
-                
-                // Update history list
-                historyList.innerHTML = historyItems.length > 0 ? 
-                    historyItems.map(item => createHistoryItem(item)).join('') :
-                    '<div class="empty-state">No generated QR codes yet</div>';
-                
-                // Add delete functionality
-                addDeleteHandlers();
-            });
-    }
-}
-
-// Function to show scanned QR history
+// Add function to show only scanned history
 function showScannedHistory() {
-    const historyList = document.querySelector('.history-list');
     const user = auth.currentUser;
-    
-    if (user) {
-        Promise.all([
-            database.ref('scans/' + user.uid).orderByChild('timestamp').limitToLast(10).once('value'),
-            database.ref('verifications/' + user.uid).orderByChild('timestamp').limitToLast(10).once('value')
-        ]).then(([scansSnapshot, verificationsSnapshot]) => {
+    if (!user) return;
+
+    const historyList = document.querySelector('.history-list');
+    historyList.innerHTML = '';
+
+    database.ref(`scans/${user.uid}`).once('value')
+        .then((snapshot) => {
             const historyItems = [];
-            
-            // Add scans
-            scansSnapshot.forEach((childSnapshot) => {
-                const item = childSnapshot.val();
+            snapshot.forEach(child => {
                 historyItems.push({
-                    id: childSnapshot.key,
+                    id: child.key,
                     type: 'scan',
-                    content: item.content,
-                    timestamp: item.timestamp
+                    ...child.val()
                 });
             });
-            
-            // Add verifications
-            verificationsSnapshot.forEach((childSnapshot) => {
-                const item = childSnapshot.val();
-                historyItems.push({
-                    id: childSnapshot.key,
-                    type: 'verification',
-                    content: item.assetCode,
-                    timestamp: item.timestamp,
-                    comments: item.comments,
-                    location: item.location
-                });
-            });
-            
+
             // Sort by timestamp
             historyItems.sort((a, b) => b.timestamp - a.timestamp);
-            
-            // Update history list
-            historyList.innerHTML = historyItems.length > 0 ? 
-                historyItems.map(item => createHistoryItem(item)).join('') :
-                '<div class="empty-state">No scanned QR codes yet</div>';
-            
-            // Add delete functionality
-            addDeleteHandlers();
+
+            // Render items
+            historyList.innerHTML = historyItems.map(item => createHistoryItem(item)).join('');
         });
+}
+
+// Add function to show only generated QR history
+function showGeneratedHistory() {
+    const user = auth.currentUser;
+    if (!user) return;
+
+    const historyList = document.querySelector('.history-list');
+    historyList.innerHTML = '';
+
+    database.ref(`generated_qr/${user.uid}`).once('value')
+        .then((snapshot) => {
+            const historyItems = [];
+            snapshot.forEach(child => {
+                historyItems.push({
+                    id: child.key,
+                    type: 'generated',
+                    ...child.val()
+                });
+            });
+
+            // Sort by timestamp
+            historyItems.sort((a, b) => b.timestamp - a.timestamp);
+
+            // Render items
+            historyList.innerHTML = historyItems.map(item => createHistoryItem(item)).join('');
+        });
+}
+
+// Update populateHistory to show scanned history by default
+function populateHistory() {
+    const activeTab = document.querySelector('.tab-btn.active');
+    if (activeTab) {
+        if (activeTab.textContent.trim() === 'Create') {
+            showGeneratedHistory();
+        } else {
+            showScannedHistory();
+        }
+    } else {
+        showScannedHistory(); // Default to scanned history
     }
 }
 
@@ -978,7 +842,6 @@ document.addEventListener('DOMContentLoaded', () => {
     initTabs();
     initAuthTabs();
     initMenu();
-    initHistoryItemClick();
     populateHistory();
 });
 
@@ -1014,100 +877,238 @@ document.addEventListener('visibilitychange', () => {
 // Add cleanup on page unload
 window.addEventListener('beforeunload', cleanupScanner);
 
-// Update populateHistory function to include verifications
-function populateHistory() {
-    const historyList = document.querySelector('.history-list');
-    const user = auth.currentUser;
-    
-    if (user) {
-        // Get scans, verifications, and generated QR codes
-        Promise.all([
-            database.ref('scans/' + user.uid).orderByChild('timestamp').limitToLast(10).once('value'),
-            database.ref('verifications/' + user.uid).orderByChild('timestamp').limitToLast(10).once('value'),
-            database.ref('generated_qr/' + user.uid).orderByChild('timestamp').limitToLast(10).once('value')
-        ]).then(([scansSnapshot, verificationsSnapshot, generatedSnapshot]) => {
-            const historyItems = [];
-            
-            // Add all types of items to history
-            [
-                { snapshot: scansSnapshot, type: 'scan' },
-                { snapshot: verificationsSnapshot, type: 'verification' },
-                { snapshot: generatedSnapshot, type: 'generated' }
-            ].forEach(({ snapshot, type }) => {
-                snapshot.forEach((childSnapshot) => {
-                    const item = childSnapshot.val();
-                    historyItems.push({
-                        id: childSnapshot.key,
-                        type: type,
-                        content: item.content || item.assetCode,
-                        timestamp: item.timestamp,
-                        comments: item.comments,
-                        location: item.location
-                    });
-                });
-            });
-            
-            // Sort by timestamp
-            historyItems.sort((a, b) => b.timestamp - a.timestamp);
-            
-            // Update HTML
-            historyList.innerHTML = historyItems.map(item => createHistoryItem(item)).join('');
-            
-            // Add delete functionality
-            historyList.querySelectorAll('.history-delete').forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    e.stopPropagation(); // Prevent item click event
-                    const historyItem = e.target.closest('.history-item');
-                    if (confirm('Are you sure you want to delete this item?')) {
-                        const itemId = historyItem.dataset.id;
-                        const itemType = historyItem.dataset.type;
-                        deleteHistoryItem(itemId, itemType);
-                    }
-                });
-            });
-        });
-    }
-}
-
 // Update createHistoryItem function
 function createHistoryItem(item) {
     const date = new Date(item.timestamp).toLocaleString();
-    let icon, extraContent = '';
+    let icon = 'fa-qrcode';
+    let content = item.content || item.assetCode || 'Unknown content';
+    let statusIcon = '';
     
-    switch(item.type) {
-        case 'verification':
-            icon = 'fa-check-circle';
-            extraContent = `
-                <div class="verification-details">
-                    <div class="verification-comment">${item.comments}</div>
-                    <div class="verification-location">
-                        <i class="fas fa-map-marker-alt"></i> ${item.location}
-                    </div>
-                </div>
-            `;
-            break;
-        case 'generated':
-            icon = 'fa-qrcode';
-            break;
-        default:
-            icon = 'fa-scan';
+    if (content.startsWith('AST/')) {
+        icon = 'fa-box';
+        // Add verification status icon
+        if (item.verified) {
+            statusIcon = '<i class="fas fa-check-circle" style="color: #2ed573; margin-left: 8px;"></i>';
+        }
+    } else if (content.startsWith('http')) {
+        icon = 'fa-link';
     }
 
     return `
-        <div class="history-item" data-id="${item.id}" data-type="${item.type}" data-content="${item.content}">
+        <div class="history-item" 
+            data-id="${item.id}" 
+            data-type="${item.type || 'scan'}" 
+            data-content="${content}"
+            onclick="handleHistoryItemClick(this)">
             <div class="history-icon">
                 <i class="fas ${icon}"></i>
             </div>
             <div class="history-content">
-                <div class="history-title">${item.content}</div>
-                <div class="history-subtitle">${date}</div>
-                ${extraContent}
+                <div class="history-title">
+                    ${content}
+                    ${statusIcon}
+                </div>
+                <div class="history-subtitle">
+                    <i class="fas fa-clock"></i>
+                    <span>${date}</span>
+                </div>
             </div>
-            <button class="history-delete">
-                <i class="fas fa-trash"></i>
+            <button class="history-delete" onclick="handleDeleteClick(event, this)">
+                <i class="fas fa-trash-alt"></i>
             </button>
         </div>
     `;
+}
+
+// Update handleHistoryItemClick function
+function handleHistoryItemClick(element) {
+    const content = element.dataset.content;
+    const type = element.dataset.type;
+    const itemId = element.dataset.id;
+    
+    const user = auth.currentUser;
+    if (!user) return;
+
+    if (type === 'generated') {
+        // Show generated QR code details
+        database.ref(`generated_qr/${user.uid}/${itemId}`).once('value')
+            .then((snapshot) => {
+                const data = snapshot.val();
+                if (data) {
+                    showGeneratedQRDetails(data);
+                }
+            });
+    } else if (type === 'scan') {
+        // Show scanned QR code details
+        database.ref(`scans/${user.uid}/${itemId}`).once('value')
+            .then((snapshot) => {
+                const data = snapshot.val();
+                if (data) {
+                    showScanDetails(data);
+                }
+            });
+    } else if (content.startsWith('AST/')) {
+        // Show asset details
+        const assetPage = document.createElement('div');
+        assetPage.className = 'container asset-page';
+        
+        database.ref(`verifications/${user.uid}`)
+            .orderByChild('assetCode')
+            .equalTo(content)
+            .once('value')
+            .then((snapshot) => {
+                const verifications = [];
+                snapshot.forEach(child => {
+                    verifications.push({
+                        ...child.val(),
+                        id: child.key
+                    });
+                });
+
+                assetPage.innerHTML = `
+                    <div class="top-nav">
+                        <div class="nav-left">
+                            <button class="back-btn">
+                                <i class="fas fa-arrow-left"></i>
+                            </button>
+                            <h1>Asset Details</h1>
+                        </div>
+                    </div>
+
+                    <div class="asset-content">
+                        <div class="section">
+                            <h3 class="section-title">Asset Information</h3>
+                            <div class="detail-items">
+                                <div class="detail-item">
+                                    <span class="label">Asset Code</span>
+                                    <span class="value">${content}</span>
+                                </div>
+                                <div class="detail-item">
+                                    <span class="label">Status</span>
+                                    <span class="value">Active</span>
+                                </div>
+                                <div class="detail-item">
+                                    <span class="label">Location</span>
+                                    <span class="value">Main Warehouse</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        ${verifications.length > 0 ? `
+                            <div class="section">
+                                <h3 class="section-title">Verification History</h3>
+                                <div class="verification-history">
+                                    ${verifications.map(v => `
+                                        <div class="verification-item">
+                                            <div class="verification-header">
+                                                <i class="fas fa-check-circle"></i>
+                                                <span class="verification-date">
+                                                    ${new Date(v.timestamp).toLocaleString()}
+                                                </span>
+                                            </div>
+                                            <div class="verification-details">
+                                                <div class="verification-comment">
+                                                    ${v.comments || 'No comments'}
+                                                </div>
+                                                <div class="verification-location">
+                                                    <i class="fas fa-map-marker-alt"></i>
+                                                    ${v.location || 'Location not available'}
+                                                </div>
+                                                <div class="verification-user">
+                                                    <i class="fas fa-user"></i>
+                                                    ${v.userEmail}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </div>
+                        ` : ''}
+
+                        <div class="section verification-section">
+                            <h3 class="section-title">Verify Asset</h3>
+                            <div class="verification-form">
+                                <div class="input-group">
+                                    <label class="input-label">Comments</label>
+                                    <textarea id="verification-comments" placeholder="Enter your comments about this asset..."></textarea>
+                                </div>
+                                <button id="verify-btn" class="primary-btn">
+                                    <i class="fas fa-check-circle"></i> Verify Asset
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                // Add back button functionality
+                assetPage.querySelector('.back-btn').addEventListener('click', () => {
+                    assetPage.remove();
+                    document.getElementById('scanner-container').classList.remove('hidden');
+                    document.querySelectorAll('.nav-btn').forEach(btn => {
+                        btn.classList.remove('active');
+                        if (btn.dataset.view === 'history') {
+                            btn.classList.add('active');
+                        }
+                    });
+                });
+
+                // Add verify button functionality
+                assetPage.querySelector('#verify-btn').addEventListener('click', () => {
+                    showVerificationConfirm(content);
+                });
+
+                // Hide other views and show asset page
+                document.getElementById('scanner-view').classList.add('hidden');
+                document.getElementById('scanner-container').classList.add('hidden');
+                document.getElementById('generate-view').classList.add('hidden');
+                document.body.appendChild(assetPage);
+            });
+    }
+}
+
+function handleDeleteClick(event, button) {
+    event.stopPropagation();
+    const historyItem = button.closest('.history-item');
+    const itemId = historyItem.dataset.id;
+    const itemType = historyItem.dataset.type;
+    deleteHistoryItem(itemId, itemType);
+}
+
+// Update showGeneratedQRDetails function
+function showGeneratedQRDetails(data) {
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.innerHTML = `
+        <div class="modal-content">
+            <h3>Generated QR Code</h3>
+            <div class="qr-details">
+                <div class="qr-preview"></div>
+                <p class="qr-content">${data.content}</p>
+                <p class="qr-date">Generated on: ${new Date(data.timestamp).toLocaleString()}</p>
+            </div>
+            <div class="modal-buttons">
+                <button class="primary-btn" onclick="downloadQRCode(this)">Download QR</button>
+                <button class="secondary-btn" onclick="this.closest('.modal').remove()">Close</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+    
+    // Generate QR code in preview
+    new QRCode(modal.querySelector('.qr-preview'), {
+        text: data.content,
+        width: 200,
+        height: 200,
+        colorDark: "#000000",
+        colorLight: "#ffffff",
+        correctLevel: QRCode.CorrectLevel.H
+    });
+}
+
+// Helper function for copying text
+function copyToClipboard(text) {
+    navigator.clipboard.writeText(text)
+        .catch(err => console.error('Failed to copy:', err));
 }
 
 // Update deleteHistoryItem function to handle all types of items
@@ -1128,12 +1129,10 @@ function deleteHistoryItem(itemId, itemType) {
 
         database.ref(`${path}/${user.uid}/${itemId}`).remove()
             .then(() => {
-                showSuccessMessage('Item deleted successfully');
                 populateHistory();
             })
             .catch((error) => {
                 console.error('Error deleting item:', error);
-                alert('Error deleting item');
             });
     }
 }
@@ -1315,28 +1314,175 @@ function initMenu() {
     });
 }
 
-// Add history item click handler
-function initHistoryItemClick() {
-    document.querySelector('.history-list').addEventListener('click', (e) => {
-        const historyItem = e.target.closest('.history-item');
-        if (historyItem && !e.target.closest('.history-delete')) {
-            const content = historyItem.dataset.content;
-            showAssetDetails(content);
-        }
-    });
-}
-
 function addDeleteHandlers() {
     const historyList = document.querySelector('.history-list');
     historyList.querySelectorAll('.history-delete').forEach(btn => {
         btn.addEventListener('click', (e) => {
             e.stopPropagation();
             const historyItem = e.target.closest('.history-item');
-            if (confirm('Are you sure you want to delete this item?')) {
-                const itemId = historyItem.dataset.id;
-                const itemType = historyItem.dataset.type;
-                deleteHistoryItem(itemId, itemType);
-            }
+            const itemId = historyItem.dataset.id;
+            const itemType = historyItem.dataset.type;
+            deleteHistoryItem(itemId, itemType);
         });
+    });
+}
+
+// Add download QR code function
+function downloadQRCode(button) {
+    const qrImage = button.closest('.modal-content').querySelector('.qr-preview img');
+    if (qrImage) {
+        const link = document.createElement('a');
+        link.download = 'qrcode.png';
+        link.href = qrImage.src;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+}
+
+// Update the history view HTML structure
+function initHistoryView() {
+    const historyView = document.getElementById('scanner-container');
+    
+    // Remove any existing top nav
+    const existingNav = historyView.querySelector('.top-nav');
+    if (existingNav) {
+        existingNav.remove();
+    }
+
+    // Create new top nav
+    const topNav = document.createElement('div');
+    topNav.className = 'top-nav';
+    topNav.innerHTML = `
+        <h1>History</h1>
+        <button class="menu-btn" id="menu-btn">
+            <i class="fas fa-bars"></i>
+        </button>
+    `;
+    
+    // Insert the top nav at the beginning
+    historyView.insertBefore(topNav, historyView.firstChild);
+
+    // Add menu button functionality
+    const menuBtn = topNav.querySelector('#menu-btn');
+    menuBtn.addEventListener('click', () => {
+        showMenu();
+    });
+}
+
+// Call this function when the app initializes
+document.addEventListener('DOMContentLoaded', () => {
+    initHistoryView();
+});
+
+// Add showMenu function
+function showMenu() {
+    const menuDropdown = document.createElement('div');
+    menuDropdown.className = 'menu-dropdown';
+    menuDropdown.innerHTML = `
+        <div class="menu-content">
+            <div class="menu-header">
+                <div class="user-info">
+                    <i class="fas fa-user-circle"></i>
+                    <span>${auth.currentUser.email}</span>
+                </div>
+            </div>
+            <div class="menu-items">
+                <button class="menu-item" id="logout-btn">
+                    <i class="fas fa-sign-out-alt"></i>
+                    <span>Logout</span>
+                </button>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(menuDropdown);
+    
+    // Add animation class after a small delay
+    setTimeout(() => menuDropdown.classList.add('show'), 50);
+    
+    // Add logout functionality
+    menuDropdown.querySelector('#logout-btn').addEventListener('click', () => {
+        auth.signOut().then(() => {
+            // Remove menu dropdown
+            menuDropdown.remove();
+            // Redirect to login
+            window.location.reload();
+        }).catch(error => {
+            console.error('Logout error:', error);
+        });
+    });
+    
+    // Close menu when clicking outside
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('#menu-btn') && !e.target.closest('.menu-dropdown')) {
+            menuDropdown.classList.remove('show');
+            setTimeout(() => menuDropdown.remove(), 300);
+        }
+    });
+}
+
+// Update the QR code generation view
+function initGenerateView() {
+    const generateView = document.getElementById('generate-view');
+    
+    // Add navigation bar
+    const nav = document.createElement('div');
+    nav.className = 'top-nav';
+    nav.innerHTML = `
+        <div class="nav-left">
+            <button class="back-btn" onclick="closeGenerateView()">
+                <i class="fas fa-arrow-left"></i>
+            </button>
+            <h1>Generate QR</h1>
+        </div>
+    `;
+    
+    // Insert nav at the beginning of generate view
+    generateView.insertBefore(nav, generateView.firstChild);
+}
+
+// Add close function
+function closeGenerateView() {
+    document.getElementById('generate-view').classList.add('hidden');
+    document.getElementById('scanner-container').classList.remove('hidden');
+    
+    // Update active nav button
+    document.querySelectorAll('.nav-btn').forEach(btn => {
+        btn.classList.remove('active');
+        if (btn.dataset.view === 'history') {
+            btn.classList.add('active');
+        }
+    });
+}
+
+// Call this when initializing the app
+document.addEventListener('DOMContentLoaded', () => {
+    initGenerateView();
+});
+
+// Update closeScanner function
+function closeScanner() {
+    if (currentScanner) {
+        currentScanner.stop();
+        
+        // Stop video stream
+        const preview = document.getElementById('preview');
+        if (preview.srcObject) {
+            const tracks = preview.srcObject.getTracks();
+            tracks.forEach(track => track.stop());
+            preview.srcObject = null;
+        }
+    }
+    
+    document.getElementById('scanner-view').classList.add('hidden');
+    document.getElementById('scanner-container').classList.remove('hidden');
+    
+    // Update active nav button
+    document.querySelectorAll('.nav-btn').forEach(btn => {
+        btn.classList.remove('active');
+        if (btn.dataset.view === 'history') {
+            btn.classList.add('active');
+        }
     });
 } 
