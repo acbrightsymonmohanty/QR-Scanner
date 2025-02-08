@@ -209,6 +209,137 @@
         </nav>
     </div>
 
+    <!-- Asset Details View -->
+    <div id="asset-details-view" class="container hidden">
+        <header class="app-header">
+            <button class="back-btn">
+                <i class="fas fa-arrow-left"></i>
+            </button>
+            <h2 style="margin-left: 40px;">Asset Details</h2>
+        </header>
+
+        <div class="asset-content">
+            <!-- Asset Details Section -->
+            <div class="details-card">
+                <div class="card-header">
+                    <h3>Asset Details</h3>
+                    <i class="fas fa-chevron-down"></i>
+                </div>
+                <div class="card-content">
+                    <div class="info-row">
+                        <span class="info-label">Name</span>
+                        <span class="info-value">Na</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Code</span>
+                        <span class="info-value">AST/24-25/0026</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">MFG Date</span>
+                        <span class="info-value">Na</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Purchase Date</span>
+                        <span class="info-value">Na</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Asset Images Section -->
+            <div class="details-card">
+                <div class="card-header">
+                    <h3>Asset Images</h3>
+                    <i class="fas fa-chevron-down"></i>
+                </div>
+                <div class="card-content">
+                    <div class="image-grid">
+                        <div class="asset-image" onclick="showFullImage(this)">
+                            <img src="placeholder.jpg" alt="Asset Image">
+                        </div>
+                        <div class="asset-image" onclick="showFullImage(this)">
+                            <img src="placeholder.jpg" alt="Asset Image">
+                        </div>
+                        <div class="asset-image" onclick="showFullImage(this)">
+                            <img src="placeholder.jpg" alt="Asset Image">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Asset Documents Section -->
+            <div class="details-card">
+                <div class="card-header">
+                    <h3>Asset Documents</h3>
+                    <i class="fas fa-chevron-down"></i>
+                </div>
+                <div class="card-content">
+                    <div class="document-item">
+                        <i class="fas fa-file-pdf"></i>
+                        <span>Document 1</span>
+                        <button class="download-btn" onclick="downloadDocument('document1.pdf')">
+                            <i class="fas fa-download"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Verification Section -->
+            <div class="verification-section">
+                <div class="comment-field">
+                    <label>Comments</label>
+                    <textarea id="verification-comment" placeholder="Enter your comments..."></textarea>
+                </div>
+                <button class="verify-btn" onclick="showVerificationConfirm()">
+                    <i class="fas fa-check-circle"></i>
+                    Verify Asset
+                </button>
+            </div>
+        </div>
+
+        <!-- Bottom Navigation -->
+        <nav class="bottom-nav">
+            <button class="nav-btn" data-view="generate">
+                <i class="fas fa-qrcode"></i>
+                <span>Generate</span>
+            </button>
+            <div class="center-btn-container">
+                <button class="center-btn">
+                    <i class="fas fa-qrcode"></i>
+                </button>
+            </div>
+            <button class="nav-btn" data-view="history">
+                <i class="fas fa-history"></i>
+                <span>History</span>
+            </button>
+        </nav>
+    </div>
+
+    <!-- Image Viewer Modal -->
+    <div id="image-viewer" class="modal hidden">
+        <div class="modal-content">
+            <img id="full-image" src="" alt="Full size image">
+            <button class="close-modal">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- Verification Confirmation Modal -->
+    <div id="verification-modal" class="modal hidden">
+        <div class="modal-content verification-confirm">
+            <h3>Confirm Verification</h3>
+            <p>Are you sure you want to verify this asset?</p>
+            <div class="location-info">
+                <i class="fas fa-map-marker-alt"></i>
+                <span id="current-location">Getting location...</span>
+            </div>
+            <div class="modal-buttons">
+                <button class="no-btn" onclick="closeVerificationModal()">No</button>
+                <button class="yes-btn" onclick="confirmVerification()">Yes</button>
+            </div>
+        </div>
+    </div>
+
     <input type="file" id="gallery-input" accept="image/*" class="hidden">
     <script src="app.js"></script>
 </body>

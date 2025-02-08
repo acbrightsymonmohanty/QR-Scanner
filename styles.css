@@ -1642,69 +1642,103 @@ input:focus {
 
 /* Verification Form Styles */
 .verification-section {
-    margin-top: 20px;
+    padding: 16px;
+    margin-top: 16px;
+    background: var(--card-bg);
+    border-radius: 12px;
 }
 
-#verification-comments {
+.comment-field {
+    margin-bottom: 16px;
+}
+
+.comment-field label {
+    display: block;
+    color: var(--gray-text);
+    margin-bottom: 8px;
+}
+
+#verification-comment {
     width: 100%;
-    min-height: 100px;
+    height: 100px;
     padding: 12px;
     border-radius: 8px;
     border: 1px solid var(--darker-bg);
     background: var(--darker-bg);
     color: var(--light-text);
-    font-size: 14px;
     resize: vertical;
-    margin-bottom: 16px;
-    font-family: inherit;
 }
 
-#verification-comments:focus {
-    border-color: var(--primary-color);
-    outline: none;
-}
-
-#verify-btn {
+.verify-btn {
+    width: 100%;
+    padding: 14px;
+    background: var(--primary-color);
+    border: none;
+    border-radius: 8px;
+    color: white;
+    font-size: 16px;
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 8px;
-    background: var(--primary-color);
-    font-size: 16px;
+    cursor: pointer;
 }
 
-#verify-btn i {
-    font-size: 18px;
-}
-
-/* Verification Modal Styles */
-.verification-modal .modal-content {
-    max-width: 320px;
-}
-
-.location-info {
+/* Image Viewer Modal Styles */
+#image-viewer {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.9);
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 12px;
-    background: var(--darker-bg);
-    border-radius: 8px;
-    margin: 16px 0;
-    color: var(--gray-text);
+    justify-content: center;
+    z-index: 1000;
 }
 
-.location-info i {
-    color: var(--primary-color);
+#image-viewer .modal-content {
+    position: relative;
+    max-width: 90%;
+    max-height: 90vh;
 }
 
-.modal-buttons {
-    display: flex;
-    gap: 12px;
-    margin-top: 20px;
+#full-image {
+    max-width: 100%;
+    max-height: 90vh;
+    object-fit: contain;
 }
 
-.modal-buttons button {
-    flex: 1;
+.close-modal {
+    position: absolute;
+    top: -40px;
+    right: 0;
+    background: none;
+    border: none;
+    color: white;
+    font-size: 24px;
+    cursor: pointer;
+}
+
+/* Asset Image Click Effect */
+.asset-image {
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+.asset-image:hover {
+    transform: scale(1.05);
+}
+
+/* Document Download Button Effect */
+.download-btn {
+    transition: transform 0.2s;
+}
+
+.download-btn:hover {
+    transform: scale(1.1);
+    background: var(--primary-color);
 }
 
 /* Toast Message Styles */
@@ -2095,4 +2129,263 @@ body.auth-active {
 
 .menu-btn i {
     font-size: 18px;
+}
+
+/* Asset Details Styles */
+.asset-details-view {
+    background-color: #121212;
+    min-height: 100vh;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+#asset-details-view .app-header {
+    display: flex;
+    align-items: center;
+    padding: 16px;
+    padding-top: calc(env(safe-area-inset-top) + 16px);
+    background-color: #1E1E1E;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+
+#asset-details-view .back-btn {
+    background: none;
+    border: none;
+    color: white;
+    padding: 8px;
+    margin-right: 16px;
+    cursor: pointer;
+}
+
+#asset-details-view .asset-content {
+    flex: 1;
+    padding: 16px;
+    overflow-y: auto;
+}
+
+/* Card Styles */
+.details-card {
+    background-color: #1E1E1E;
+    border-radius: 12px;
+    margin-bottom: 16px;
+    overflow: hidden;
+}
+
+.card-header {
+    padding: 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: #FFA500;
+    border-bottom: 1px solid #2A2A2A;
+    cursor: pointer;
+}
+
+.card-header h3 {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 500;
+}
+
+.card-content {
+    padding: 16px;
+}
+
+/* Info Row Styles */
+.info-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 12px 0;
+    border-bottom: 1px solid #2A2A2A;
+}
+
+.info-row:last-child {
+    border-bottom: none;
+}
+
+.info-label {
+    color: #888;
+    font-size: 0.9rem;
+}
+
+.info-value {
+    color: white;
+    font-size: 0.9rem;
+}
+
+/* Verification Item Styles */
+.verification-item {
+    background-color: #2A2A2A;
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 12px;
+}
+
+.verification-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+}
+
+.verification-header i {
+    color: #FFA500;
+}
+
+.verification-date {
+    color: #888;
+    font-size: 0.9rem;
+}
+
+/* Image Grid Styles */
+.image-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+}
+
+.asset-image {
+    aspect-ratio: 1;
+    background-color: #2A2A2A;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.asset-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* Document Item Styles */
+.document-item {
+    display: flex;
+    align-items: center;
+    padding: 12px;
+    background-color: #2A2A2A;
+    border-radius: 8px;
+    margin-bottom: 8px;
+}
+
+.document-item i {
+    color: #FFA500;
+    margin-right: 12px;
+}
+
+.download-btn {
+    margin-left: auto;
+    background: none;
+    border: none;
+    color: #FFA500;
+    padding: 8px;
+    cursor: pointer;
+}
+
+/* Collapsible functionality */
+.card-header i {
+    transition: transform 0.3s ease;
+}
+
+.details-card.collapsed .card-header i {
+    transform: rotate(-180deg);
+}
+
+.details-card.collapsed .card-content {
+    display: none;
+}
+
+/* Verification Modal Styles */
+.verification-confirm {
+    background: #2D2D2D;
+    border-radius: 16px;
+    padding: 24px;
+    width: 90%;
+    max-width: 320px;
+}
+
+.verification-confirm h3 {
+    color: white;
+    font-size: 18px;
+    margin-bottom: 12px;
+}
+
+.verification-confirm p {
+    color: #888;
+    font-size: 14px;
+    margin-bottom: 16px;
+}
+
+.location-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #888;
+    font-size: 14px;
+    margin-bottom: 24px;
+}
+
+.location-info i {
+    color: #FFA500;
+}
+
+.modal-buttons {
+    display: flex;
+    gap: 12px;
+}
+
+.no-btn, .yes-btn {
+    flex: 1;
+    padding: 12px;
+    border-radius: 8px;
+    border: none;
+    font-size: 16px;
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+.no-btn {
+    background: #FFFFFF;
+    color: #000000;
+}
+
+.yes-btn {
+    background: #FFA500;
+    color: white;
+}
+
+.no-btn:active, .yes-btn:active {
+    transform: scale(0.98);
+}
+
+/* Toast Message Styles */
+.toast-message {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #2D2D2D;
+    color: white;
+    padding: 12px 24px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    z-index: 2000;
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+.toast-message.show {
+    opacity: 1;
+}
+
+.toast-message.success i {
+    color: #4CAF50;
+}
+
+.toast-message.error i {
+    color: #F44336;
 }

@@ -120,7 +120,7 @@ authForm.addEventListener('submit', async (e) => {
 // Add toast message function
 function showToast(message, type = 'success') {
     const toast = document.createElement('div');
-    toast.className = `toast-message ${type}`;
+    toast.className = `toast-message ${type} show`;
     toast.innerHTML = `
         <i class="fas ${type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle'}"></i>
         <span>${message}</span>
@@ -1594,4 +1594,136 @@ function showMenu() {
             setTimeout(() => menuDropdown.remove(), 300);
         }
     });
-} 
+}
+
+// Add this to your app.js file
+function showAssetDetails() {
+    // Hide all other containers
+    document.querySelectorAll('.container').forEach(container => {
+        container.classList.add('hidden');
+    });
+    
+    // Show asset details view
+    const assetDetailsView = document.getElementById('asset-details-view');
+    assetDetailsView.classList.remove('hidden');
+}
+
+// Add click handler for back button
+document.querySelector('.back-btn').addEventListener('click', () => {
+    document.getElementById('asset-details-view').classList.add('hidden');
+    // Show previous view (e.g., scanner or history view)
+    document.getElementById('scanner-container').classList.remove('hidden');
+});
+
+// Add collapsible functionality to cards
+document.querySelectorAll('.card-header').forEach(header => {
+    header.addEventListener('click', () => {
+        const card = header.closest('.details-card');
+        card.classList.toggle('collapsed');
+    });
+});
+
+// Function to show full-size image
+function showFullImage(imageDiv) {
+    const imgSrc = imageDiv.querySelector('img').src;
+    const viewer = document.getElementById('image-viewer');
+    const fullImage = document.getElementById('full-image');
+    
+    fullImage.src = imgSrc;
+    viewer.classList.remove('hidden');
+    
+    // Close on click outside
+    viewer.onclick = (e) => {
+        if (e.target === viewer) {
+            viewer.classList.add('hidden');
+        }
+    };
+}
+
+// Function to download document
+function downloadDocument(documentPath) {
+    // Create a temporary link to trigger download
+    const link = document.createElement('a');
+    link.href = documentPath;
+    link.download = documentPath.split('/').pop();
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
+// Function to show verification confirmation
+function showVerificationConfirm() {
+    const modal = document.getElementById('verification-modal');
+    modal.classList.remove('hidden');
+    
+    // Get current location
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                const locationSpan = document.getElementById('current-location');
+                locationSpan.textContent = `${position.coords.latitude}, ${position.coords.longitude}`;
+            },
+            (error) => {
+                console.error('Error getting location:', error);
+                document.getElementById('current-location').textContent = 'Location unavailable';
+            }
+        );
+    }
+}
+
+// Function to close verification modal
+function closeVerificationModal() {
+    document.getElementById('verification-modal').classList.add('hidden');
+}
+
+// Function to confirm verification
+function confirmVerification() {
+    const comment = document.getElementById('verification-comment').value;
+    const locationText = document.getElementById('current-location').textContent;
+    const user = firebase.auth().currentUser;
+    const assetCode = document.querySelector('[data-field="code"]')?.textContent || 'AST/24-25/0026';
+    
+    if (user) {
+        // Create verification data
+        const verificationData = {
+            assetCode: assetCode,
+            userEmail: user.email,
+            timestamp: Date.now(),
+            comments: comment || 'No comments', // Store empty comment as 'No comments'
+            location: locationText,
+            verified: true
+        };
+
+        // Save to Firebase
+        firebase.database().ref(`verifications/${user.uid}`).push(verificationData)
+            .then(() => {
+                // Show success toast
+                showToast('Asset verified successfully', 'success');
+                
+                // Close verification modal
+                closeVerificationModal();
+                
+                // Return to home page (scanner container)
+                document.querySelectorAll('.container').forEach(container => {
+                    container.classList.add('hidden');
+                });
+                document.getElementById('scanner-container').classList.remove('hidden');
+                
+                // Reset comment field
+                document.getElementById('verification-comment').value = '';
+                
+                // Update history if needed
+                if (typeof populateHistory === 'function') {
+                    populateHistory();
+                }
+            })
+            .catch((error) => {
+                console.error('Error saving verification:', error);
+                showToast('Failed to verify asset', 'error');
+            });
+    } else {
+        showToast('Please login to verify assets', 'error');
+    }
+}
+
+// Add this CSS to your styles.css file 
