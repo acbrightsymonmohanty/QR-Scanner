@@ -212,7 +212,7 @@ letsStartBtn.addEventListener('click', () => {
 // Add this variable to track the current scanner instance
 let currentScanner = null;
 
-// Update initScanner function to start with back camera
+// Update initScanner function
 function initScanner() {
     const scannerView = document.getElementById('scanner-view');
     
@@ -231,156 +231,133 @@ function initScanner() {
         scannerView.insertBefore(nav, scannerView.firstChild);
     }
 
-    // Initialize camera with back camera first
+    // Request camera permissions first
     if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-        navigator.mediaDevices.getUserMedia({ 
-            video: { 
-                facingMode: 'environment',  // Force back camera
+        navigator.mediaDevices.getUserMedia({
+            video: {
+                facingMode: 'environment',
                 width: { ideal: 1280 },
                 height: { ideal: 720 }
-            },
-            audio: false 
-        })
-        .then(function(stream) {
+            }
+        }).then(stream => {
             const preview = document.getElementById('preview');
             preview.srcObject = stream;
             preview.play();
 
+            // Initialize scanner
             currentScanner = new Instascan.Scanner({
                 video: preview,
                 mirror: false,
                 continuous: true,
-                captureImage: true,
                 scanPeriod: 5
             });
 
             currentScanner.addListener('scan', handleScanResult);
             currentScanner.start();
 
-            // Initialize camera controls after scanner is ready
-            initCameraControls();
-        })
-        .catch(function(error) {
+            // Initialize camera controls
+            const galleryBtn = document.querySelector('.control-btn:nth-child(1)');
+            const flashBtn = document.querySelector('.control-btn:nth-child(2)');
+            const switchCameraBtn = document.querySelector('.control-btn:nth-child(3)');
+            const galleryInput = document.getElementById('gallery-input');
+
+            // Gallery button
+            galleryBtn.addEventListener('click', () => {
+                galleryInput.click();
+            });
+
+            // Flash button
+            let isFlashOn = false;
+            flashBtn.addEventListener('click', async () => {
+                try {
+                    const track = stream.getVideoTracks()[0];
+                    const capabilities = track.getCapabilities();
+
+                    if (capabilities.torch) {
+                        isFlashOn = !isFlashOn;
+                        await track.applyConstraints({
+                            advanced: [{ torch: isFlashOn }]
+                        });
+                        flashBtn.innerHTML = isFlashOn ? 
+                            '<i class="fas fa-bolt" style="color: var(--primary-color);"></i>' : 
+                            '<i class="fas fa-bolt"></i>';
+                        showToast(isFlashOn ? 'Flash turned on' : 'Flash turned off', 'success');
+                    } else {
+                        showToast('Flash not available on this device', 'error');
+                    }
+                } catch (err) {
+                    console.error('Flash error:', err);
+                    showToast('Failed to toggle flash', 'error');
+                }
+            });
+
+            // Switch camera button
+            let isFrontCamera = false;
+            switchCameraBtn.addEventListener('click', async () => {
+                try {
+                    // Stop current stream
+                    stream.getTracks().forEach(track => track.stop());
+                    currentScanner.stop();
+
+                    // Toggle camera
+                    isFrontCamera = !isFrontCamera;
+
+                    // Start new stream
+                    const newStream = await navigator.mediaDevices.getUserMedia({
+                        video: {
+                            facingMode: isFrontCamera ? 'user' : 'environment',
+                            width: { ideal: 1280 },
+                            height: { ideal: 720 }
+                        }
+                    });
+
+                    preview.srcObject = newStream;
+                    await preview.play();
+
+                    // Reinitialize scanner
+                    currentScanner = new Instascan.Scanner({
+                        video: preview,
+                        mirror: isFrontCamera,
+                        continuous: true,
+                        scanPeriod: 5
+                    });
+
+                    currentScanner.addListener('scan', handleScanResult);
+                    await currentScanner.start();
+
+                    // Update stream reference
+                    stream = newStream;
+
+                    // Reset flash
+                    isFlashOn = false;
+                    flashBtn.innerHTML = '<i class="fas fa-bolt"></i>';
+
+                    showToast(`Switched to ${isFrontCamera ? 'front' : 'back'} camera`, 'success');
+                } catch (err) {
+                    console.error('Camera switch error:', err);
+                    showToast('Failed to switch camera', 'error');
+                }
+            });
+
+            // Gallery input handler
+            galleryInput.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    if (!file.type.startsWith('image/')) {
+                        showToast('Please select an image file', 'error');
+                        return;
+                    }
+                    handleGalleryImage(file);
+                }
+                e.target.value = '';
+            });
+
+        }).catch(error => {
             console.error('Camera access error:', error);
             showToast('Error accessing camera. Please check permissions.', 'error');
             closeScanner();
         });
     }
-}
-
-// Update initCameraControls function
-function initCameraControls() {
-    const galleryBtn = document.querySelector('.control-btn:nth-child(1)');
-    const flashBtn = document.querySelector('.control-btn:nth-child(2)');
-    const switchCameraBtn = document.querySelector('.control-btn:nth-child(3)');
-    const galleryInput = document.getElementById('gallery-input');
-    let isFrontCamera = false;
-
-    // Gallery button
-    galleryBtn.addEventListener('click', () => {
-        galleryInput.click();
-    });
-
-    // Flash button
-    let isFlashOn = false;
-    flashBtn.addEventListener('click', async () => {
-        if (!currentScanner) {
-            showToast('Camera not initialized', 'error');
-            return;
-        }
-
-        try {
-            const stream = currentScanner.video.srcObject;
-            const track = stream.getVideoTracks()[0];
-            
-            // Check if torch is available
-            const capabilities = track.getCapabilities();
-            if (!capabilities.torch) {
-                showToast('Flash not available on this device', 'error');
-                return;
-            }
-
-            isFlashOn = !isFlashOn;
-            await track.applyConstraints({
-                advanced: [{ torch: isFlashOn }]
-            });
-
-            flashBtn.innerHTML = isFlashOn ? 
-                '<i class="fas fa-bolt" style="color: var(--primary-color);"></i>' : 
-                '<i class="fas fa-bolt"></i>';
-            
-            showToast(isFlashOn ? 'Flash turned on' : 'Flash turned off', 'success');
-        } catch (err) {
-            console.error('Flash error:', err);
-            showToast('Failed to toggle flash', 'error');
-        }
-    });
-
-    // Switch camera button
-    switchCameraBtn.addEventListener('click', async () => {
-        try {
-            if (currentScanner) {
-                // Stop current scanner and stream
-                const oldStream = currentScanner.video.srcObject;
-                if (oldStream) {
-                    oldStream.getTracks().forEach(track => track.stop());
-                }
-                currentScanner.stop();
-
-                // Toggle between front and back camera
-                isFrontCamera = !isFrontCamera;
-                
-                try {
-                    const stream = await navigator.mediaDevices.getUserMedia({
-                        video: {
-                            facingMode: isFrontCamera ? 'user' : 'environment'
-                        }
-                    });
-                    
-                    const preview = document.getElementById('preview');
-                    preview.srcObject = stream;
-                    await preview.play();
-
-                    // Reinitialize scanner with new stream
-                    currentScanner = new Instascan.Scanner({
-                        video: preview,
-                        mirror: isFrontCamera,  // Mirror for front camera
-                        continuous: true,
-                        captureImage: true,
-                        scanPeriod: 5
-                    });
-                    
-                    currentScanner.addListener('scan', handleScanResult);
-                    await currentScanner.start();
-                    
-                    // Turn off flash when switching camera
-                    isFlashOn = false;
-                    flashBtn.innerHTML = '<i class="fas fa-bolt"></i>';
-                    
-                    showToast(`Switched to ${isFrontCamera ? 'front' : 'back'} camera`, 'success');
-                } catch (streamError) {
-                    console.error('Stream error:', streamError);
-                    showToast('Failed to switch camera', 'error');
-                }
-            }
-        } catch (err) {
-            console.error('Camera switch error:', err);
-            showToast('Error switching camera', 'error');
-        }
-    });
-
-    // Gallery input handler remains the same
-    galleryInput.addEventListener('change', (e) => {
-        const file = e.target.files[0];
-        if (file) {
-            if (!file.type.startsWith('image/')) {
-                showToast('Please select an image file', 'error');
-                return;
-            }
-            handleGalleryImage(file);
-        }
-        e.target.value = '';
-    });
 }
 
 // Add handleGalleryImage function
