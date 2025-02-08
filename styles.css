@@ -724,7 +724,7 @@ input:focus {
 }
 
 .scanner-frame {
-    flex: 1;
+    
     position: relative;
     margin: 20px;
     display: flex;
