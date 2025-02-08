@@ -215,7 +215,9 @@ let currentScanner = null;
 // Update initScanner function
 function initScanner() {
     const scannerView = document.getElementById('scanner-view');
-    
+    let currentStream = null;
+    let isFrontCamera = false;
+
     // Add navigation bar if it doesn't exist
     if (!scannerView.querySelector('.top-nav')) {
         const nav = document.createElement('div');
@@ -231,18 +233,32 @@ function initScanner() {
         scannerView.insertBefore(nav, scannerView.firstChild);
     }
 
-    // Request camera permissions first
-    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-        navigator.mediaDevices.getUserMedia({
-            video: {
-                facingMode: 'environment',
-                width: { ideal: 1280 },
-                height: { ideal: 720 }
+    // Function to start camera with specific facing mode
+    async function startCamera(facingMode = 'environment') {
+        try {
+            // Stop any existing streams
+            if (currentStream) {
+                currentStream.getTracks().forEach(track => track.stop());
             }
-        }).then(stream => {
+            if (currentScanner) {
+                currentScanner.stop();
+            }
+
+            // Try to get the requested camera
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: {
+                    facingMode: { exact: facingMode },
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 }
+                }
+            });
+
             const preview = document.getElementById('preview');
             preview.srcObject = stream;
-            preview.play();
+            preview.style.transform = facingMode === 'user' ? 'scaleX(1)' : 'scaleX(-1)';
+            await preview.play();
+
+            currentStream = stream;
 
             // Initialize scanner
             currentScanner = new Instascan.Scanner({
@@ -253,8 +269,23 @@ function initScanner() {
             });
 
             currentScanner.addListener('scan', handleScanResult);
-            currentScanner.start();
+            await currentScanner.start();
 
+            return stream;
+        } catch (error) {
+            console.error('Camera start error:', error);
+            // If back camera fails, try front camera
+            if (facingMode === 'environment') {
+                console.log('Falling back to front camera');
+                return startCamera('user');
+            }
+            throw error;
+        }
+    }
+
+    // Start with back camera
+    startCamera('environment')
+        .then(stream => {
             // Initialize camera controls
             const galleryBtn = document.querySelector('.control-btn:nth-child(1)');
             const flashBtn = document.querySelector('.control-btn:nth-child(2)');
@@ -270,7 +301,7 @@ function initScanner() {
             let isFlashOn = false;
             flashBtn.addEventListener('click', async () => {
                 try {
-                    const track = stream.getVideoTracks()[0];
+                    const track = currentStream.getVideoTracks()[0];
                     const capabilities = track.getCapabilities();
 
                     if (capabilities.torch) {
@@ -292,46 +323,15 @@ function initScanner() {
             });
 
             // Switch camera button
-            let isFrontCamera = false;
             switchCameraBtn.addEventListener('click', async () => {
                 try {
-                    // Stop current stream
-                    stream.getTracks().forEach(track => track.stop());
-                    currentScanner.stop();
-
-                    // Toggle camera
                     isFrontCamera = !isFrontCamera;
-
-                    // Start new stream
-                    const newStream = await navigator.mediaDevices.getUserMedia({
-                        video: {
-                            facingMode: isFrontCamera ? 'user' : 'environment',
-                            width: { ideal: 1280 },
-                            height: { ideal: 720 }
-                        }
-                    });
-
-                    preview.srcObject = newStream;
-                    await preview.play();
-
-                    // Reinitialize scanner
-                    currentScanner = new Instascan.Scanner({
-                        video: preview,
-                        mirror: isFrontCamera,
-                        continuous: true,
-                        scanPeriod: 5
-                    });
-
-                    currentScanner.addListener('scan', handleScanResult);
-                    await currentScanner.start();
-
-                    // Update stream reference
-                    stream = newStream;
-
-                    // Reset flash
+                    await startCamera(isFrontCamera ? 'user' : 'environment');
+                    
+                    // Reset flash state
                     isFlashOn = false;
                     flashBtn.innerHTML = '<i class="fas fa-bolt"></i>';
-
+                    
                     showToast(`Switched to ${isFrontCamera ? 'front' : 'back'} camera`, 'success');
                 } catch (err) {
                     console.error('Camera switch error:', err);
@@ -351,13 +351,12 @@ function initScanner() {
                 }
                 e.target.value = '';
             });
-
-        }).catch(error => {
+        })
+        .catch(error => {
             console.error('Camera access error:', error);
             showToast('Error accessing camera. Please check permissions.', 'error');
             closeScanner();
         });
-    }
 }
 
 // Add handleGalleryImage function
