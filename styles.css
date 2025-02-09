@@ -2510,6 +2510,7 @@ body.auth-active {
     padding-bottom: calc(80px + env(safe-area-inset-bottom));
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
+    margin-top: 40px;
 }
 
 /* Input Section Styles */
