@@ -2025,7 +2025,7 @@ input:focus {
     position: relative;
     padding-bottom: calc(80px + var(--safe-area-bottom));
     transition: all 0.3s ease-in-out;
-    padding-top: calc(env(safe-area-inset-top) + 70px);
+    padding-top: calc(env(safe-area-inset-top) + 0px);
     padding-left: 20px;
     padding-right: 20px;
 }
