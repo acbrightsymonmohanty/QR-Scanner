@@ -1402,15 +1402,31 @@ document.getElementById('download-qr').addEventListener('click', () => {
     }
 });
 
-// Add generate view close button functionality
+// Generate view close button functionality
 document.getElementById('generate-close').addEventListener('click', () => {
-    // Clear input and hide QR result
+    // Hide generate view
+    document.getElementById('generate-view').classList.add('hidden');
+    
+    // Show scanner container and ensure it's visible
+    const scannerContainer = document.getElementById('scanner-container');
+    scannerContainer.classList.remove('hidden');
+    scannerContainer.style.display = 'block';
+    
+    // Reset generate form
     document.getElementById('qr-input').value = '';
     document.getElementById('qr-result').classList.add('hidden');
-    document.querySelector('.qr-preview').innerHTML = '';
+    const qrPreview = document.querySelector('.qr-preview');
+    if (qrPreview) {
+        qrPreview.innerHTML = '';
+    }
     
-    // Show history view
-    handleNavigation('history');
+    // Update navigation state
+    document.querySelectorAll('.nav-btn').forEach(btn => {
+        btn.classList.remove('active');
+        if (btn.dataset.view === 'history') {
+            btn.classList.add('active');
+        }
+    });
 });
 
 // Copy button functionality
@@ -1746,31 +1762,6 @@ function confirmVerification() {
 }
 
 // Add this CSS to your styles.css file 
-
-// Add back button functionality for generate view
-document.querySelector('#generate-view .back-btn').addEventListener('click', () => {
-    // Hide generate view
-    document.getElementById('generate-view').classList.add('hidden');
-    
-    // Show scanner container
-    document.getElementById('scanner-container').classList.remove('hidden');
-    
-    // Reset the form
-    document.getElementById('qr-input').value = '';
-    document.getElementById('qr-result').classList.add('hidden');
-    const qrPreview = document.querySelector('.qr-preview');
-    if (qrPreview) {
-        qrPreview.innerHTML = '';
-    }
-    
-    // Update active nav button
-    document.querySelectorAll('.nav-btn').forEach(btn => {
-        btn.classList.remove('active');
-        if (btn.dataset.view === 'history') {
-            btn.classList.add('active');
-        }
-    });
-});
 
 // Add navigation functionality
 document.querySelectorAll('#generate-view .nav-btn').forEach(btn => {
