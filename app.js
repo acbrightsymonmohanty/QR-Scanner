@@ -275,10 +275,10 @@ function initScanner() {
     const switchBtn = document.querySelector('.control-btn:nth-child(3)');
     const galleryInput = document.getElementById('gallery-input');
 
-    // Gallery button functionality
+    /*// Gallery button functionality
     galleryBtn.addEventListener('click', () => {
         galleryInput.click();
-    });
+    });*/
 
     // Flash button functionality
     let isFlashOn = false;
@@ -1348,7 +1348,7 @@ document.getElementById('generate-qr-btn').addEventListener('click', () => {
     qrResult.classList.remove('hidden');
     setTimeout(() => qrResult.classList.add('show'), 10);
 
-    // Save to history
+    // Save to history and handle the promise
     saveToHistory(input);
 });
 
@@ -2000,4 +2000,30 @@ function handleNavigation(view) {
             btn.classList.add('active');
         }
     });
-} 
+}
+
+// Update the saveToHistory function
+function saveToHistory(content) {
+    const user = auth.currentUser;
+    if (!user) {
+        showToast('Please login to save history', 'error');
+        return;
+    }
+
+    return database.ref('generated_qr/' + user.uid).push({  
+        content: content,
+        timestamp: Date.now()
+    }).then(() => {
+        // Update history list immediately after saving
+        const tabBtns = document.querySelectorAll('.tab-btn');
+        const createTab = Array.from(tabBtns).find(btn => btn.textContent === 'Create');
+        if (createTab) {
+            createTab.click(); // Switch to Create tab
+        }
+        showGeneratedHistory(); // Refresh the history list
+        showToast('QR Code generated and saved', 'success');
+    }).catch(error => {
+        console.error('Error saving to history:', error);
+        showToast('Failed to save to history', 'error');
+    });
+}
