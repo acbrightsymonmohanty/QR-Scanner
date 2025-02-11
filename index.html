@@ -145,20 +145,19 @@
             <div class="corner-marker bottom-left"></div>
             <div class="corner-marker bottom-right"></div>
         </div>
-
         
 
         <nav class="bottom-nav">
-            <button class="nav-btn">
+            <button class="nav-btn active" data-view="generate">
                 <i class="fas fa-qrcode"></i>
                 <span>Generate</span>
             </button>
             <div class="center-btn-container">
-                <button class="center-btn active">
+                <button class="center-btn" onclick="openScanner()">
                     <i class="fas fa-qrcode"></i>
                 </button>
             </div>
-            <button class="nav-btn">
+            <button class="nav-btn" data-view="history">
                 <i class="fas fa-history"></i>
                 <span>History</span>
             </button>
@@ -208,18 +207,18 @@
         </div>
 
         <nav class="bottom-nav">
-            <button class="nav-btn" data-view="history">
-                <i class="fas fa-history"></i>
-                <span>History</span>
+            <button class="nav-btn active" data-view="generate">
+                <i class="fas fa-qrcode"></i>
+                <span>Generate</span>
             </button>
             <div class="center-btn-container">
                 <button class="center-btn" onclick="openScanner()">
                     <i class="fas fa-qrcode"></i>
                 </button>
             </div>
-            <button class="nav-btn active" data-view="generate">
-                <i class="fas fa-qrcode"></i>
-                <span>Generate</span>
+            <button class="nav-btn" data-view="history">
+                <i class="fas fa-history"></i>
+                <span>History</span>
             </button>
         </nav>
     </div>

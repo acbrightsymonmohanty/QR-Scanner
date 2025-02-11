@@ -869,6 +869,7 @@ input:focus {
 .center-btn.active {
     background: var(--primary-color);
     transform: scale(1.1);
+    
 }
 
 #preview {
@@ -1209,6 +1210,7 @@ input:focus {
     color: var(--light-text);
     margin: 0;
     font-size: 20px;
+
 }
 
 .back-btn {
@@ -1555,7 +1557,7 @@ input:focus {
     text-align: center;
     margin: 0;
     font-size: 20px;
-    margin-left: -121px;
+        margin-left: -76px;
 }
 
 .back-btn {
